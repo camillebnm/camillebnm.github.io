@@ -120,19 +120,19 @@ const featuredPublications = sortedPublications.slice(0, 3);
 
 </div>
 
-<div class="actions">
+    <div class="actions">
 
-  <a href={`${import.meta.env.BASE_URL}/publications/`} class="button primary-button">
-    <span>Publications</span>
-    <span class="button-arrow">→</span>
-  </a>
+      <a href="/publications" class="button primary-button">
+        <span>Publications</span>
+        <span class="button-arrow">→</span>
+      </a>
 
-  <a href={`${import.meta.env.BASE_URL}/contact/`} class="button primary-button">
-    Get in touch
-    <span class="button-arrow">→</span>
-  </a>
+      <a href="/contact" class="button primary-button">
+        Get in touch
+        <span class="button-arrow">→</span>
+      </a>
 
-</div>
+    </div>
 
   </section>
 
@@ -273,57 +273,57 @@ const featuredPublications = sortedPublications.slice(0, 3);
 
     <div class="publication-grid">
 
-  {featuredPublications.map((publication, index) => (
+      {featuredPublications.map((publication, index) => (
 
-    <article class="publication-card">
+        <article class="publication-card">
 
-      <div class="publication-index">
-        0{index + 1}
-      </div>
+          <div class="publication-index">
+            0{index + 1}
+          </div>
 
-      {publication.data.image && (
-        <div class="publication-image-wrapper">
-          <img
-            src={publication.data.image}
-            alt={`Thumbnail of ${publication.data.title}`}
-            class="home-publication-thumbnail"
-          />
-        </div>
-      )}
+          {publication.data.image && (
+            <div class="publication-image-wrapper">
+              <img
+                src={publication.data.image}
+                alt={`Thumbnail of ${publication.data.title}`}
+                class="home-publication-thumbnail"
+              />
+            </div>
+          )}
 
-      <div class="home-publication-content">
+          <div class="home-publication-content">
 
-        <p class="publication-year">
-          {publication.data.year}
-        </p>
+            <p class="publication-year">
+              {publication.data.year}
+            </p>
 
-        <h3>
-          {publication.data.title}
-        </h3>
+            <h3>
+              {publication.data.title}
+            </h3>
 
-        <p class="publication-authors">
-          {publication.data.authors.join(", ")}
-        </p>
+            <p class="publication-authors">
+              {publication.data.authors.join(", ")}
+            </p>
 
-        <p class="publication-venue">
-          {publication.data.venue}
-        </p>
+            <p class="publication-venue">
+              {publication.data.venue}
+            </p>
 
-        <a
-          href={`${import.meta.env.BASE_URL}/publications/${publication.id}/`}
-          class="publication-link"
-        >
-          Read paper
-          <span>→</span>
-        </a>
+            <a
+              href={`/publications/${publication.id}`}
+              class="publication-link"
+            >
+              Read paper
+              <span>→</span>
+            </a>
 
-      </div>
+          </div>
 
-    </article>
+        </article>
 
-  ))}
+      ))}
 
-</div>
+    </div>
 
   </section>
 
