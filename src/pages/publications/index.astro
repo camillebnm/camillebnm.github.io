@@ -1,0 +1,62 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const publications = await getCollection("publications");
+
+const sortedPublications = publications
+  .filter((publication) => !publication.id.toLowerCase().includes("test"))
+  .sort((a, b) => b.data.year - a.data.year);
+---
+
+<BaseLayout title="Publications — Camille Buonomo">
+
+  <header class="publications-header">
+    <p class="eyebrow">Research</p>
+
+    <h1>Publications</h1>
+  </header>
+
+
+  <section class="publication-list">
+
+    {sortedPublications.map((publication) => (
+
+	<a
+  href={`${import.meta.env.BASE_URL}/publications/${publication.id}/`}
+  class="publication-list-item"
+>
+  {publication.data.image && (
+    <img
+      class="publication-thumbnail"
+      src={publication.data.image}
+      alt=""
+    />
+  )}
+
+  <div class="publication-list-content">
+
+    <p class="publication-year">
+      {publication.data.year}
+    </p>
+
+    <h2>
+      {publication.data.title}
+    </h2>
+
+    <p class="publication-authors">
+      {publication.data.authors.join(" · ")}
+    </p>
+
+    <p class="publication-venue">
+      {publication.data.venue}
+    </p>
+
+  </div>
+</a>
+
+    ))}
+
+  </section>
+
+</BaseLayout>

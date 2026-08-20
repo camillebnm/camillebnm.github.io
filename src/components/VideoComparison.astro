@@ -1,0 +1,1111 @@
+---
+interface Frame {
+  src: string;
+  alt?: string;
+}
+
+interface Video {
+  frames: Frame[];
+}
+
+interface Props {
+  videos: Video[];
+  labels?: string[];
+  fps?: number;
+}
+
+const {
+  videos,
+  labels = [],
+  fps = 10,
+} = Astro.props;
+
+const frontFrames = videos[0]?.frames ?? [];
+const backFrames = videos[1]?.frames ?? [];
+
+const frameCount = Math.min(
+  frontFrames.length,
+  backFrames.length
+);
+
+function isPdf(src: string) {
+  return src.toLowerCase().split("?")[0].endsWith(".pdf");
+}
+---
+
+{frameCount > 0 && (
+  <div
+    class="video-comparison"
+    data-front-frames={JSON.stringify(frontFrames)}
+    data-back-frames={JSON.stringify(backFrames)}
+    data-fps={fps}
+  >
+
+    <!-- =========================================
+         IMAGE / PDF ARRIÈRE
+         ========================================= -->
+
+    {isPdf(backFrames[0].src) ? (
+      <canvas
+        class="video-comparison-media video-comparison-back"
+        data-pdf
+        aria-label={backFrames[0].alt ?? ""}
+      ></canvas>
+    ) : (
+      <img
+        class="video-comparison-media video-comparison-back"
+        src={backFrames[0].src}
+        alt={backFrames[0].alt ?? ""}
+        draggable="false"
+      />
+    )}
+
+
+    <!-- =========================================
+         IMAGE / PDF AVANT
+         ========================================= -->
+
+    {isPdf(frontFrames[0].src) ? (
+      <canvas
+        class="video-comparison-media video-comparison-front"
+        data-pdf
+        aria-label={frontFrames[0].alt ?? ""}
+      ></canvas>
+    ) : (
+      <img
+        class="video-comparison-media video-comparison-front"
+        src={frontFrames[0].src}
+        alt={frontFrames[0].alt ?? ""}
+        draggable="false"
+      />
+    )}
+
+
+    <!-- =========================================
+         LABEL AVANT
+         ========================================= -->
+
+    {labels[0] && (
+      <div class="video-comparison-label video-comparison-label-front">
+        {labels[0]}
+      </div>
+    )}
+
+
+    <!-- =========================================
+         LABEL ARRIÈRE
+         ========================================= -->
+
+    {labels[1] && (
+      <div class="video-comparison-label video-comparison-label-back">
+        {labels[1]}
+      </div>
+    )}
+
+
+    <!-- =========================================
+         DIVIDER
+         ========================================= -->
+
+    <div class="video-comparison-divider">
+      <div class="video-comparison-handle">
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+
+
+    <!-- =========================================
+         SLIDER
+         ========================================= -->
+
+    <input
+      class="video-comparison-range"
+      type="range"
+      min="0"
+      max="100"
+      value="50"
+      aria-label="Comparer les deux vidéos"
+    />
+
+  </div>
+)}
+
+
+<script>
+  import * as pdfjsLib from "pdfjs-dist";
+  import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+
+  /*
+   * =========================================
+   * INITIALISATION
+   * =========================================
+   */
+
+  function initVideoComparisons() {
+
+    const comparisons = document.querySelectorAll(
+      ".video-comparison:not([data-vc-initialized])"
+    );
+
+    console.log(
+      "VIDEO COMPARISON: FOUND",
+      comparisons.length
+    );
+
+
+    comparisons.forEach((comparison) => {
+
+      comparison.dataset.vcInitialized = "true";
+
+
+      /*
+       * =========================================
+       * ELEMENTS
+       * =========================================
+       */
+
+      const range =
+        comparison.querySelector(
+          ".video-comparison-range"
+        );
+
+      let front = comparison.querySelector(".video-comparison-front");
+
+      let back = comparison.querySelector(".video-comparison-back");
+
+      const divider =
+        comparison.querySelector(
+          ".video-comparison-divider"
+        );
+
+
+      if (
+        !range ||
+        !front ||
+        !back ||
+        !divider
+      ) {
+
+        console.error(
+          "VIDEO COMPARISON: MISSING ELEMENTS",
+          {
+            range,
+            front,
+            back,
+            divider
+          }
+        );
+
+        return;
+      }
+
+
+      /*
+       * =========================================
+       * SLIDER
+       * =========================================
+       */
+
+function updateSlider(value) {
+  const position = Number(value);
+  front.style.clipPath = "inset(0 " + (100 - position) + "% 0 0)";
+  back.style.clipPath = "inset(0 0 0 " + position + "%)";
+  divider.style.left = position + "%";
+}
+
+
+      updateSlider(range.value);
+
+
+      range.addEventListener(
+        "input",
+        function () {
+
+          updateSlider(
+            range.value
+          );
+
+        }
+      );
+
+
+      /*
+       * =========================================
+       * DONNÉES DES FRAMES
+       * =========================================
+       */
+
+      let frontFrames;
+      let backFrames;
+
+      try {
+
+        frontFrames = JSON.parse(
+          comparison.dataset.frontFrames || "[]"
+        );
+
+        backFrames = JSON.parse(
+          comparison.dataset.backFrames || "[]"
+        );
+
+      } catch (error) {
+
+        console.error(
+          "VIDEO COMPARISON: FRAME DATA ERROR",
+          error
+        );
+
+        return;
+      }
+
+
+      const frameCount =
+        Math.min(
+          frontFrames.length,
+          backFrames.length
+        );
+
+
+      if (frameCount === 0) {
+        return;
+      }
+
+
+      const fps =
+        Number(
+          comparison.dataset.fps
+        ) || 10;
+
+
+      /*
+       * =========================================
+       * TEST PDF
+       * =========================================
+       */
+
+      function isPdf(src) {
+
+        return src
+          .toLowerCase()
+          .split("?")[0]
+          .endsWith(".pdf");
+      }
+
+
+      /*
+       * =========================================
+       * CACHE DES FRAMES
+       * =========================================
+       *
+       * Chaque frame contient :
+       *
+       * {
+       *   type: "image",
+       *   element: Image
+       * }
+       *
+       * ou
+       *
+       * {
+       *   type: "pdf",
+       *   element: canvas
+       * }
+       *
+       * Les PDF sont donc rendus une seule fois.
+       */
+
+      const frontFramesRendered = [];
+      const backFramesRendered = [];
+
+
+      /*
+       * =========================================
+       * RENDRE UN PDF
+       * =========================================
+       */
+
+      async function renderPdf(
+        src,
+        targetCanvas
+      ) {
+
+        try {
+
+          const pdf =
+            await pdfjsLib
+              .getDocument({
+                url: src
+              })
+              .promise;
+
+
+          const page =
+            await pdf.getPage(1);
+
+
+          const container =
+            comparison;
+
+
+          const baseViewport =
+            page.getViewport({
+              scale: 1
+            });
+
+
+          const containerWidth =
+            container.clientWidth;
+
+
+          if (!containerWidth) {
+            return;
+          }
+
+
+          const scale =
+            containerWidth /
+            baseViewport.width;
+
+
+          const viewport =
+            page.getViewport({
+              scale
+            });
+
+
+          const context =
+            targetCanvas.getContext("2d");
+
+
+          if (!context) {
+            return;
+          }
+
+
+          targetCanvas.width =
+            viewport.width;
+
+          targetCanvas.height =
+            viewport.height;
+
+
+          await page.render({
+            canvasContext: context,
+            viewport
+          }).promise;
+
+
+        } catch (error) {
+
+          console.error(
+            "VIDEO COMPARISON: PDF ERROR",
+            src,
+            error
+          );
+
+        }
+      }
+
+
+      /*
+       * =========================================
+       * PRÉCHARGER UNE FRAME
+       * =========================================
+       */
+
+      async function preloadFrame(
+        frame
+      ) {
+
+        if (!frame || !frame.src) {
+          return null;
+        }
+
+
+        /*
+         * IMAGE
+         */
+
+        if (!isPdf(frame.src)) {
+
+          const image =
+            new Image();
+
+          image.src =
+            frame.src;
+
+          image.alt =
+            frame.alt || "";
+
+          image.draggable =
+            false;
+
+
+          /*
+           * On attend que l'image soit chargée.
+           */
+
+          try {
+
+            if (!image.complete) {
+
+              await new Promise(
+                function (resolve) {
+
+                  image.onload =
+                    resolve;
+
+                  image.onerror =
+                    resolve;
+
+                }
+              );
+
+            }
+
+          } catch (error) {
+
+            console.error(
+              "VIDEO COMPARISON: IMAGE ERROR",
+              frame.src,
+              error
+            );
+
+          }
+
+
+          return {
+            type: "image",
+            element: image
+          };
+        }
+
+
+        /*
+         * PDF
+         */
+
+        const canvas =
+          document.createElement(
+            "canvas"
+          );
+
+
+        canvas.className =
+          "video-comparison-media";
+
+
+        canvas.setAttribute(
+          "aria-label",
+          frame.alt || ""
+        );
+
+
+        await renderPdf(
+          frame.src,
+          canvas
+        );
+
+
+        return {
+          type: "pdf",
+          element: canvas
+        };
+      }
+
+
+      /*
+       * =========================================
+       * PRÉCHARGEMENT DE TOUTES LES FRAMES
+       * =========================================
+       */
+
+      async function preloadAllFrames() {
+
+        for (
+          let i = 0;
+          i < frameCount;
+          i++
+        ) {
+
+          const frontFrame =
+            await preloadFrame(
+              frontFrames[i]
+            );
+
+          const backFrame =
+            await preloadFrame(
+              backFrames[i]
+            );
+
+
+          frontFramesRendered.push(
+            frontFrame
+          );
+
+          backFramesRendered.push(
+            backFrame
+          );
+        }
+
+
+        showFrame(0);
+      }
+
+
+      /*
+       * =========================================
+       * AFFICHER UNE FRAME
+       * =========================================
+       */
+
+      function showFrame(index) {
+
+        const frontFrame =
+          frontFramesRendered[index];
+
+        const backFrame =
+          backFramesRendered[index];
+
+
+        if (
+          frontFrame &&
+          frontFrame.element
+        ) {
+
+          updateMedia(
+            front,
+            frontFrame.element,
+            frontFrames[index]
+          );
+        }
+
+
+        if (
+          backFrame &&
+          backFrame.element
+        ) {
+
+          updateMedia(
+            back,
+            backFrame.element,
+            backFrames[index]
+          );
+        }
+      }
+
+
+      /*
+       * =========================================
+       * REMPLACER LE MEDIA
+       * =========================================
+       */
+
+      function updateMedia(
+        currentElement,
+        newElement,
+        frame
+      ) {
+
+        /*
+         * IMAGE → IMAGE
+         */
+
+        if (
+          currentElement.tagName === "IMG" &&
+          newElement.tagName === "IMG"
+        ) {
+
+          currentElement.src =
+            newElement.src;
+
+          currentElement.alt =
+            frame.alt || "";
+
+          return;
+        }
+
+
+        /*
+         * CANVAS → CANVAS
+         */
+
+        if (
+          currentElement.tagName === "CANVAS" &&
+          newElement.tagName === "CANVAS"
+        ) {
+
+          const context =
+            currentElement.getContext(
+              "2d"
+            );
+
+
+          if (!context) {
+            return;
+          }
+
+
+          currentElement.width =
+            newElement.width;
+
+          currentElement.height =
+            newElement.height;
+
+
+          context.clearRect(
+            0,
+            0,
+            currentElement.width,
+            currentElement.height
+          );
+
+
+          context.drawImage(
+            newElement,
+            0,
+            0
+          );
+
+
+          return;
+        }
+
+
+        /*
+         * IMAGE ↔ CANVAS
+         *
+         * Si le type change entre deux frames,
+         * on remplace complètement l'élément.
+         */
+
+        const replacement =
+          newElement.cloneNode(
+            true
+          );
+
+
+        replacement.classList.add(
+          "video-comparison-media"
+        );
+
+
+        replacement.classList.add(
+          currentElement.classList.contains(
+            "video-comparison-front"
+          )
+            ? "video-comparison-front"
+            : "video-comparison-back"
+        );
+
+
+        currentElement.replaceWith(
+          replacement
+        );
+
+
+        /*
+         * Le DOM contient maintenant le nouvel
+         * élément. On met à jour la référence
+         * utilisée par l'animation.
+         */
+
+        if (
+          replacement.classList.contains(
+            "video-comparison-front"
+          )
+        ) {
+
+          front = replacement;
+
+        } else {
+
+          back = replacement;
+
+        }
+      }
+
+
+      /*
+       * =========================================
+       * ANIMATION
+       * =========================================
+       */
+
+      let frameIndex = 0;
+      let direction = 1;
+
+      let lastTime =
+        performance.now();
+
+      const frameDuration =
+        1000 / fps;
+
+      let rafId = null;
+
+
+      function animate(currentTime) {
+  const elapsed = currentTime - lastTime;
+
+  if (elapsed >= frameDuration) {
+    lastTime = currentTime;
+
+    showFrame(frameIndex);
+
+    if (frameCount > 1) {
+      frameIndex += direction;
+
+      if (frameIndex >= frameCount - 1) {
+        frameIndex = frameCount - 1;
+        direction = -1;
+      } else if (frameIndex <= 0) {
+        frameIndex = 0;
+        direction = 1;
+      }
+    }
+  }
+
+  rafId = requestAnimationFrame(animate);
+}
+
+
+      /*
+       * =========================================
+       * DÉMARRAGE
+       * =========================================
+       */
+
+      preloadAllFrames()
+        .then(function () {
+
+          frameIndex = 0;
+
+          lastTime =
+            performance.now();
+
+          rafId =
+            requestAnimationFrame(
+              animate
+            );
+
+        });
+
+
+      /*
+       * =========================================
+       * STOCKAGE RAF
+       * =========================================
+       */
+
+      comparison._vcRafId =
+        rafId;
+
+    });
+  }
+
+
+  /*
+   * =========================================
+   * INITIALISATION ASTRO
+   * =========================================
+   */
+
+  initVideoComparisons();
+
+  document.addEventListener(
+    "astro:page-load",
+    initVideoComparisons
+  );
+</script>
+
+
+<style>
+
+  .video-comparison {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #eee;
+    user-select: none;
+  }
+
+
+  .video-comparison-media {
+    position: absolute;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+
+    display: block;
+
+    pointer-events: none;
+    user-select: none;
+  }
+
+
+  .video-comparison-back {
+    z-index: 1;
+  }
+
+
+  .video-comparison-front {
+    z-index: 2;
+
+    clip-path:
+      inset(0 50% 0 0);
+  }
+
+
+  /*
+   * Les canvas PDF doivent également
+   * prendre toute la surface.
+   */
+
+  canvas.video-comparison-media {
+    width: 100% !important;
+    height: 100% !important;
+
+    object-fit: contain;
+  }
+
+
+  /*
+   * =========================================
+   * LABELS
+   * =========================================
+   */
+
+  .video-comparison-label {
+    position: absolute;
+
+    z-index: 6;
+
+    padding:
+      0.35rem 0.7rem;
+
+    background:
+      rgb(255 255 255 / 90%);
+
+    color: #333;
+
+    border:
+      1px solid
+      rgb(0 0 0 / 10%);
+
+    border-radius: 6px;
+
+    font-size: 0.8rem;
+
+    font-weight: 500;
+
+    line-height: 1.2;
+
+    box-shadow:
+      0 2px 8px
+      rgb(0 0 0 / 12%);
+
+    pointer-events: none;
+
+    backdrop-filter:
+      blur(4px);
+
+    white-space: nowrap;
+  }
+
+
+  .video-comparison-label-front {
+    top: 14px;
+    left: 14px;
+  }
+
+
+  .video-comparison-label-back {
+    top: 14px;
+    right: 14px;
+  }
+
+
+  /*
+   * =========================================
+   * DIVIDER
+   * =========================================
+   */
+
+  .video-comparison-divider {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    left: 50%;
+
+    width: 2px;
+
+    background: white;
+
+    transform:
+      translateX(-50%);
+
+    z-index: 4;
+
+    pointer-events: none;
+
+    box-shadow:
+      0 0 0 1px
+      rgb(0 0 0 / 15%),
+
+      0 0 10px
+      rgb(0 0 0 / 20%);
+  }
+
+
+  /*
+   * =========================================
+   * HANDLE
+   * =========================================
+   */
+
+  .video-comparison-handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    width: 42px;
+    height: 42px;
+
+    transform:
+      translate(-50%, -50%);
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 4px;
+
+    background: white;
+
+    border:
+      1px solid #ddd;
+
+    border-radius: 50%;
+
+    box-shadow:
+      0 3px 12px
+      rgb(0 0 0 / 20%);
+  }
+
+
+  .video-comparison-handle span {
+    width: 0;
+    height: 0;
+
+    border-top:
+      6px solid transparent;
+
+    border-bottom:
+      6px solid transparent;
+  }
+
+
+  .video-comparison-handle span:first-child {
+    border-right:
+      7px solid #333;
+  }
+
+
+  .video-comparison-handle span:last-child {
+    border-left:
+      7px solid #333;
+  }
+
+
+  /*
+   * =========================================
+   * SLIDER INVISIBLE
+   * =========================================
+   */
+
+  .video-comparison-range {
+    position: absolute;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+
+    opacity: 0;
+
+    cursor: ew-resize;
+
+    z-index: 10;
+  }
+
+
+  .video-comparison-range::-webkit-slider-thumb {
+    width: 40px;
+    height: 100%;
+
+    appearance: none;
+  }
+
+
+  .video-comparison-range::-moz-range-thumb {
+    width: 40px;
+    height: 100%;
+
+    appearance: none;
+
+    border: 0;
+
+    background: transparent;
+  }
+
+
+  /*
+   * =========================================
+   * MOBILE
+   * =========================================
+   */
+
+  @media (max-width: 700px) {
+
+    .video-comparison {
+      aspect-ratio: 16 / 10;
+    }
+
+
+    .video-comparison-label {
+      padding:
+        0.25rem 0.5rem;
+
+      font-size: 0.7rem;
+    }
+
+
+    .video-comparison-label-front {
+      top: 8px;
+      left: 8px;
+    }
+
+
+    .video-comparison-label-back {
+      top: 8px;
+      right: 8px;
+    }
+
+  }
+
+</style>

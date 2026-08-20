@@ -1,0 +1,714 @@
+---
+interface ImageData {
+  src: string;
+  alt: string;
+}
+
+interface Props {
+  images: ImageData[];
+  labels?: string[];
+}
+
+const {
+  images,
+  labels = [],
+} = Astro.props;
+
+const pairs = [];
+
+for (let i = 0; i < images.length; i += 2) {
+  if (images[i + 1]) {
+    pairs.push([images[i], images[i + 1]]);
+  }
+}
+---
+
+{pairs.length > 0 && (
+  <div class="comparison-container">
+    {pairs.map((pair) => {
+      const isPdfBack =
+        pair[1].src.toLowerCase().endsWith(".pdf");
+
+      const isPdfFront =
+        pair[0].src.toLowerCase().endsWith(".pdf");
+
+      return (
+        <div class="comparison">
+
+          <!-- =========================================
+               IMAGE ARRIÈRE
+               ========================================= -->
+
+          {isPdfBack ? (
+            <canvas
+              class="comparison-media comparison-back"
+              data-pdf={pair[1].src}
+              aria-label={pair[1].alt}
+            ></canvas>
+          ) : (
+            <img
+              class="comparison-media comparison-back"
+              src={pair[1].src}
+              alt={pair[1].alt}
+              draggable="false"
+            />
+          )}
+
+
+          <!-- =========================================
+               IMAGE AVANT
+               ========================================= -->
+
+          {isPdfFront ? (
+            <canvas
+              class="comparison-media comparison-front"
+              data-pdf={pair[0].src}
+              aria-label={pair[0].alt}
+            ></canvas>
+          ) : (
+            <img
+              class="comparison-media comparison-front"
+              src={pair[0].src}
+              alt={pair[0].alt}
+              draggable="false"
+            />
+          )}
+
+
+          <!-- =========================================
+               LABEL IMAGE AVANT
+               ========================================= -->
+
+          {labels[0] && (
+            <div class="comparison-label comparison-label-front">
+              {labels[0]}
+            </div>
+          )}
+
+
+          <!-- =========================================
+               LABEL IMAGE ARRIÈRE
+               ========================================= -->
+
+          {labels[1] && (
+            <div class="comparison-label comparison-label-back">
+              {labels[1]}
+            </div>
+          )}
+
+
+          <!-- =========================================
+               BARRE
+               ========================================= -->
+
+          <div class="comparison-divider">
+            <div class="comparison-handle">
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+
+
+          <!-- =========================================
+               CURSEUR
+               ========================================= -->
+
+          <input
+            class="comparison-range"
+            type="range"
+            min="0"
+            max="100"
+            value="50"
+            aria-label="Comparer les deux images"
+          />
+
+        </div>
+      );
+    })}
+  </div>
+)}
+
+
+<script>
+  import * as pdfjsLib from "pdfjs-dist";
+  import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+
+  /*
+   * =========================================
+   * COMPARAISONS
+   * =========================================
+   */
+
+  const comparisons =
+    document.querySelectorAll(".comparison");
+
+
+  comparisons.forEach((comparison) => {
+
+    const range =
+      comparison.querySelector(
+        ".comparison-range"
+      ) as HTMLInputElement;
+
+
+    const front =
+      comparison.querySelector(
+        ".comparison-front"
+      ) as HTMLElement;
+
+
+    const divider =
+      comparison.querySelector(
+        ".comparison-divider"
+      ) as HTMLElement;
+
+
+    /*
+     * =========================================
+     * POSITION DE LA BARRE
+     * =========================================
+     */
+
+    function update(value: number) {
+
+      front.style.clipPath =
+        `inset(0 ${100 - value}% 0 0)`;
+
+
+      divider.style.left =
+        `${value}%`;
+    }
+
+
+    update(
+      Number(range.value)
+    );
+
+
+    range.addEventListener(
+      "input",
+      () => {
+
+        update(
+          Number(range.value)
+        );
+
+      }
+    );
+
+
+    /*
+     * =========================================
+     * RENDU PDF
+     * =========================================
+     */
+
+    async function renderPdf(
+      canvas: HTMLCanvasElement
+    ) {
+
+      const url =
+        canvas.getAttribute("data-pdf");
+
+
+      if (!url) return;
+
+
+      try {
+
+        const pdf =
+          await pdfjsLib
+            .getDocument({
+              url,
+            })
+            .promise;
+
+
+        const page =
+          await pdf.getPage(1);
+
+
+        const container =
+          canvas.parentElement;
+
+
+        if (!container) return;
+
+
+        const baseViewport =
+          page.getViewport({
+            scale: 1,
+          });
+
+
+        /*
+         * On prend la largeur disponible
+         */
+
+        const containerWidth =
+          container.clientWidth;
+
+
+        const scale =
+          containerWidth /
+          baseViewport.width;
+
+
+        const viewport =
+          page.getViewport({
+            scale,
+          });
+
+
+        const context =
+          canvas.getContext("2d");
+
+
+        if (!context) return;
+
+
+        canvas.width =
+          viewport.width;
+
+
+        canvas.height =
+          viewport.height;
+
+
+        canvas.style.width =
+          `${viewport.width}px`;
+
+
+        canvas.style.height =
+          `${viewport.height}px`;
+
+
+        await page.render({
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+
+      } catch (error) {
+
+        console.error(
+          "Erreur lors du chargement du PDF :",
+          error
+        );
+
+      }
+    }
+
+
+    /*
+     * =========================================
+     * TOUS LES PDF DE CETTE COMPARAISON
+     * =========================================
+     */
+
+    const pdfCanvases =
+      comparison.querySelectorAll(
+        "canvas[data-pdf]"
+      );
+
+
+    pdfCanvases.forEach(
+      (canvas) => {
+
+        renderPdf(
+          canvas as HTMLCanvasElement
+        );
+
+      }
+    );
+
+
+    /*
+     * =========================================
+     * REDIMENSIONNEMENT
+     * =========================================
+     */
+
+    let resizeTimeout: number;
+
+
+    window.addEventListener(
+      "resize",
+      () => {
+
+        window.clearTimeout(
+          resizeTimeout
+        );
+
+
+        resizeTimeout =
+          window.setTimeout(
+            () => {
+
+              pdfCanvases.forEach(
+                (canvas) => {
+
+                  renderPdf(
+                    canvas as HTMLCanvasElement
+                  );
+
+                }
+              );
+
+            },
+            150
+          );
+
+      }
+    );
+
+  });
+</script>
+
+
+<style>
+
+  /* =========================================
+     CONTENEUR
+     ========================================= */
+
+  .comparison-container {
+    width: 100%;
+
+    display: grid;
+
+    gap: 2rem;
+
+    margin: 4rem 0;
+  }
+
+
+  /* =========================================
+     COMPARAISON
+     ========================================= */
+
+  .comparison {
+    position: relative;
+
+    width: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    overflow: hidden;
+
+    border-radius: 12px;
+
+    background: #eee;
+
+    user-select: none;
+  }
+
+
+  /* =========================================
+     IMAGES / PDF
+     ========================================= */
+
+  .comparison-media {
+    position: absolute;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+
+    display: block;
+
+    pointer-events: none;
+
+    user-select: none;
+  }
+
+
+  /* =========================================
+     IMAGE ARRIÈRE
+     ========================================= */
+
+  .comparison-back {
+    z-index: 1;
+  }
+
+
+  /* =========================================
+     IMAGE AVANT
+     ========================================= */
+
+  .comparison-front {
+    z-index: 2;
+
+    clip-path:
+      inset(0 50% 0 0);
+  }
+
+
+  /* =========================================
+     PDF CANVAS
+     ========================================= */
+
+  canvas.comparison-media {
+    width: 100% !important;
+    height: 100% !important;
+
+    object-fit: contain;
+  }
+
+
+  /* =========================================
+     LABELS
+     ========================================= */
+
+  .comparison-label {
+    position: absolute;
+
+    z-index: 6;
+
+    padding:
+      0.35rem 0.7rem;
+
+    background:
+      rgb(255 255 255 / 90%);
+
+    color: #333;
+
+    border:
+      1px solid
+      rgb(0 0 0 / 10%);
+
+    border-radius: 6px;
+
+    font-size: 0.8rem;
+
+    font-weight: 500;
+
+    line-height: 1.2;
+
+    box-shadow:
+      0 2px 8px
+      rgb(0 0 0 / 12%);
+
+    pointer-events: none;
+
+    backdrop-filter: blur(4px);
+
+    white-space: nowrap;
+  }
+
+
+  /*
+   * Label image avant
+   *
+   * En haut à gauche.
+   */
+
+  .comparison-label-front {
+    top: 14px;
+    left: 14px;
+  }
+
+
+  /*
+   * Label image arrière
+   *
+   * En haut à droite.
+   */
+
+  .comparison-label-back {
+    top: 14px;
+    right: 14px;
+  }
+
+
+  /* =========================================
+     BARRE VERTICALE
+     ========================================= */
+
+  .comparison-divider {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    left: 50%;
+
+    width: 2px;
+
+    background: white;
+
+    transform:
+      translateX(-50%);
+
+    z-index: 4;
+
+    pointer-events: none;
+
+    box-shadow:
+      0 0 0 1px
+      rgb(0 0 0 / 15%),
+
+      0 0 10px
+      rgb(0 0 0 / 20%);
+  }
+
+
+  /* =========================================
+     POIGNÉE
+     ========================================= */
+
+  .comparison-handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    width: 42px;
+    height: 42px;
+
+    transform:
+      translate(-50%, -50%);
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 4px;
+
+    background: white;
+
+    border: 1px solid #ddd;
+
+    border-radius: 50%;
+
+    box-shadow:
+      0 3px 12px
+      rgb(0 0 0 / 20%);
+  }
+
+
+  .comparison-handle span {
+    width: 0;
+    height: 0;
+
+    border-top:
+      6px solid transparent;
+
+    border-bottom:
+      6px solid transparent;
+  }
+
+
+  .comparison-handle span:first-child {
+    border-right:
+      7px solid #333;
+  }
+
+
+  .comparison-handle span:last-child {
+    border-left:
+      7px solid #333;
+  }
+
+
+  /* =========================================
+     CURSEUR INVISIBLE
+     ========================================= */
+
+  .comparison-range {
+    position: absolute;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+
+    opacity: 0;
+
+    cursor: ew-resize;
+
+    z-index: 10;
+  }
+
+
+  .comparison-range::-webkit-slider-thumb {
+    width: 40px;
+    height: 100%;
+
+    appearance: none;
+  }
+
+
+  .comparison-range::-moz-range-thumb {
+    width: 40px;
+    height: 100%;
+
+    appearance: none;
+
+    border: 0;
+
+    background: transparent;
+  }
+
+
+  /* =========================================
+     4 IMAGES = 2 COMPARAISONS
+     ========================================= */
+
+  .comparison-container:has(
+    .comparison:nth-child(2)
+  ) {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+
+  /* =========================================
+     MOBILE
+     ========================================= */
+
+  @media (max-width: 700px) {
+
+    .comparison-container:has(
+      .comparison:nth-child(2)
+    ) {
+      grid-template-columns: 1fr;
+    }
+
+
+    .comparison {
+      aspect-ratio: 16 / 10;
+    }
+
+
+    .comparison-label {
+      padding:
+        0.25rem 0.5rem;
+
+      font-size: 0.7rem;
+    }
+
+
+    .comparison-label-front {
+      top: 8px;
+      left: 8px;
+    }
+
+
+    .comparison-label-back {
+      top: 8px;
+      right: 8px;
+    }
+
+  }
+
+</style>

@@ -1,0 +1,472 @@
+---
+interface Props {
+  images: {
+    src: string;
+    alt: string;
+  }[];
+}
+
+const { images } = Astro.props;
+---
+
+<div class="image-slider">
+  <div class="slider-viewport">
+    <div class="slider-track">
+      {images.map((image) => {
+        const isPdf = image.src.toLowerCase().endsWith(".pdf");
+
+        return (
+          <div class="slide">
+            {isPdf ? (
+              <canvas
+                class="pdf-slide"
+                data-pdf={image.src}
+                aria-label={image.alt}
+              ></canvas>
+            ) : (
+              <img
+                src={image.src}
+                alt={image.alt}
+                loading="lazy"
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+
+  <div class="slider-controls">
+
+    <button
+      class="slider-prev"
+      type="button"
+      aria-label="Image précédente"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+
+    <span class="slider-counter">
+      <span class="current">1</span> / {images.length}
+    </span>
+
+    <button
+      class="slider-next"
+      type="button"
+      aria-label="Image suivante"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 18l6-6-6-6" />
+      </svg>
+    </button>
+
+    <button
+      class="slider-fullscreen"
+      type="button"
+      aria-label="Afficher en plein écran"
+    >
+      <svg
+        class="icon-fullscreen"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M8 3H3v5" />
+        <path d="M16 3h5v5" />
+        <path d="M21 16v5h-5" />
+        <path d="M3 16v5h5" />
+      </svg>
+
+      <svg
+        class="icon-close"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M6 6l12 12" />
+        <path d="M18 6l-12 12" />
+      </svg>
+    </button>
+
+  </div>
+</div>
+
+<script>
+  import * as pdfjsLib from "pdfjs-dist";
+  import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+  const sliders = document.querySelectorAll(
+    ".image-slider"
+  );
+
+  sliders.forEach((slider) => {
+    const track = slider.querySelector(
+      ".slider-track"
+    ) as HTMLElement;
+
+    const slides = slider.querySelectorAll(".slide");
+
+    const prev = slider.querySelector(
+      ".slider-prev"
+    ) as HTMLButtonElement;
+
+    const next = slider.querySelector(
+      ".slider-next"
+    ) as HTMLButtonElement;
+
+    const current = slider.querySelector(
+      ".current"
+    ) as HTMLElement;
+
+    const fullscreen = slider.querySelector(
+      ".slider-fullscreen"
+    ) as HTMLButtonElement;
+
+    let index = 0;
+
+    // =========================
+    // PDF
+    // =========================
+
+    async function renderPdf(
+      canvas: HTMLCanvasElement
+    ) {
+      const url = canvas.getAttribute("data-pdf");
+
+      if (!url) return;
+
+      try {
+        const pdf = await pdfjsLib
+          .getDocument({ url })
+          .promise;
+
+        const page = await pdf.getPage(1);
+
+        const container =
+          canvas.parentElement;
+
+        if (!container) return;
+
+        const baseViewport =
+          page.getViewport({
+            scale: 1,
+          });
+
+        const scale =
+          container.clientWidth /
+          baseViewport.width;
+
+        const viewport =
+          page.getViewport({
+            scale,
+          });
+
+        const context =
+          canvas.getContext("2d");
+
+        if (!context) return;
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement du PDF :",
+          error
+        );
+      }
+    }
+
+    const pdfCanvases =
+      slider.querySelectorAll(
+        ".pdf-slide"
+      );
+
+    pdfCanvases.forEach((canvas) => {
+      renderPdf(
+        canvas as HTMLCanvasElement
+      );
+    });
+
+    // =========================
+    // Slider
+    // =========================
+
+    function updateSlider() {
+      track.style.transform =
+        `translateX(-${index * 100}%)`;
+
+      current.textContent =
+        String(index + 1);
+    }
+
+    next.addEventListener(
+      "click",
+      () => {
+        index =
+          (index + 1) %
+          slides.length;
+
+        updateSlider();
+      }
+    );
+
+    prev.addEventListener(
+      "click",
+      () => {
+        index =
+          (index - 1 + slides.length) %
+          slides.length;
+
+        updateSlider();
+      }
+    );
+
+    // =========================
+    // Fullscreen
+    // =========================
+
+    fullscreen.addEventListener(
+      "click",
+      async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await slider.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (error) {
+          console.error(
+            "Impossible d'activer le plein écran :",
+            error
+          );
+        }
+      }
+    );
+
+    document.addEventListener(
+      "fullscreenchange",
+      () => {
+        if (
+          document.fullscreenElement ===
+          slider
+        ) {
+          slider.classList.add(
+            "is-fullscreen"
+          );
+
+          fullscreen.setAttribute(
+            "aria-label",
+            "Quitter le plein écran"
+          );
+        } else {
+          slider.classList.remove(
+            "is-fullscreen"
+          );
+
+          fullscreen.setAttribute(
+            "aria-label",
+            "Afficher en plein écran"
+          );
+        }
+      }
+    );
+
+    // =========================
+    // Resize
+    // =========================
+
+    window.addEventListener(
+      "resize",
+      () => {
+        pdfCanvases.forEach((canvas) => {
+          renderPdf(
+            canvas as HTMLCanvasElement
+          );
+        });
+      }
+    );
+  });
+</script>
+
+<style>
+  .image-slider {
+    width: 100%;
+    margin: 4rem 0;
+  }
+
+  .slider-viewport {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #f5f5f5;
+  }
+
+  .slider-track {
+    display: flex;
+    transition: transform 0.4s ease;
+  }
+
+  .slide {
+    flex: 0 0 100%;
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+  }
+
+  .slide img,
+  .slide canvas {
+    display: block;
+
+    width: 100%;
+    height: auto;
+
+    max-width: 100%;
+  }
+
+  .slider-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 1.5rem;
+
+    margin-top: 1rem;
+  }
+
+  .slider-controls button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 40px;
+    height: 40px;
+
+    padding: 0;
+
+    border: 1px solid #ddd;
+    border-radius: 50%;
+
+    background: white;
+    color: #171717;
+
+    cursor: pointer;
+  }
+
+  .slider-controls button:hover {
+    background: #f5f5f5;
+  }
+
+  .slider-controls svg {
+    width: 20px;
+    height: 20px;
+
+    fill: none;
+
+    stroke: currentColor;
+    stroke-width: 2;
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .slider-counter {
+    color: #777;
+    font-size: 0.9rem;
+  }
+
+  /* =========================
+     Fullscreen
+     ========================= */
+
+  .image-slider:fullscreen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    width: 100vw;
+    height: 100vh;
+
+    margin: 0;
+    padding: 2rem;
+
+    background: #111;
+  }
+
+  .image-slider:fullscreen
+  .slider-viewport {
+    flex: 1;
+    min-height: 0;
+
+    display: flex;
+    align-items: center;
+  }
+
+  .image-slider:fullscreen
+  .slider-track,
+  .image-slider:fullscreen
+  .slide {
+    height: 100%;
+  }
+
+  .image-slider:fullscreen
+  .slide {
+    align-items: center;
+  }
+
+  .image-slider:fullscreen
+  .slide img,
+  .image-slider:fullscreen
+  .slide canvas {
+    width: auto;
+
+    max-width: 100%;
+    max-height: 100%;
+
+    object-fit: contain;
+  }
+
+  .image-slider:fullscreen
+  .slider-controls {
+    position: relative;
+    z-index: 10;
+
+    color: white;
+  }
+
+  .image-slider:fullscreen
+  .slider-controls button {
+    background: #222;
+    color: white;
+
+    border-color: #666;
+  }
+
+  .image-slider:fullscreen
+  .slider-controls button:hover {
+    background: #444;
+    color: white;
+  }
+
+  .icon-close {
+    display: none;
+  }
+
+  .image-slider.is-fullscreen
+  .icon-fullscreen {
+    display: none;
+  }
+
+  .image-slider.is-fullscreen
+  .icon-close {
+    display: block;
+  }
+</style>

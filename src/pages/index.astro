@@ -1,0 +1,995 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PlyVideo from "../components/PlyVideo.astro";
+
+import { getCollection } from "astro:content";
+
+const publications = await getCollection("publications");
+
+const sortedPublications = publications
+  .filter((publication) => !publication.id.toLowerCase().includes("test"))
+  .sort((a, b) => b.data.year - a.data.year);
+
+const featuredPublications = sortedPublications.slice(0, 3);
+---
+
+<BaseLayout title="Camille Buonomo — Home">
+
+  <!-- =========================
+       HERO
+       ========================= -->
+
+  <section class="hero">
+
+    <div class="hero-visual">
+          <span class="motion-label">try moving me</span>
+
+  <PlyVideo
+    srcs={[
+      "/mesh/publications/volume-preserving/forw_time_0.ply",
+      "/mesh/publications/volume-preserving/forw_time_1.ply",
+      "/mesh/publications/volume-preserving/forw_time_2.ply",
+      "/mesh/publications/volume-preserving/forw_time_3.ply",
+      "/mesh/publications/volume-preserving/forw_time_4.ply",
+      "/mesh/publications/volume-preserving/forw_time_5.ply",
+      "/mesh/publications/volume-preserving/forw_time_6.ply",
+      "/mesh/publications/volume-preserving/forw_time_7.ply",
+      "/mesh/publications/volume-preserving/forw_time_8.ply",
+      "/mesh/publications/volume-preserving/forw_time_9.ply",
+      "/mesh/publications/volume-preserving/forw_time_10.ply",
+      "/mesh/publications/volume-preserving/forw_time_11.ply",
+      "/mesh/publications/volume-preserving/forw_time_12.ply",
+      "/mesh/publications/volume-preserving/forw_time_13.ply",
+      "/mesh/publications/volume-preserving/forw_time_14.ply",
+      "/mesh/publications/volume-preserving/forw_time_15.ply",
+      "/mesh/publications/volume-preserving/forw_time_16.ply",
+      "/mesh/publications/volume-preserving/forw_time_17.ply",
+      "/mesh/publications/volume-preserving/forw_time_18.ply",
+      "/mesh/publications/volume-preserving/forw_time_19.ply",
+      "/mesh/publications/volume-preserving/forw_time_20.ply",
+      "/mesh/publications/volume-preserving/forw_time_21.ply",
+      "/mesh/publications/volume-preserving/forw_time_22.ply",
+      "/mesh/publications/volume-preserving/forw_time_23.ply"
+    ]}
+    fps={15}
+  />
+
+</div>
+
+    <p class="eyebrow">
+      <span class="eyebrow-dot"></span>
+      Applied Mathematics Engineer · PhD student
+    </p>
+
+    <h1>
+      Hi,<br />
+      I'm <strong>Camille Buonomo</strong>.
+    </h1>
+
+    <div class="hero-description">
+
+  <h2>About me</h2>
+
+  <p class="intro">
+    I'm a PhD student in geometry processing at{" "}
+    the{" "}
+    <a
+      href="https://liris.cnrs.fr/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Laboratoire d'InfoRmatique en Image et Systèmes d'information (LIRIS)
+    </a>{" "}
+    in Lyon.
+  </p>
+
+  <p class="intro">
+    I work under the supervision of{" "}
+    <a
+      href="https://perso.liris.cnrs.fr/julie.digne/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Julie Digne
+    </a>{" "}
+    and{" "}
+    <a
+      href="https://perso.liris.cnrs.fr/raphaelle.chaine/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Raphaëlle Chaine
+    </a>{" "}
+    in the{" "}
+    <a
+      href="https://projet.liris.cnrs.fr/origami/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Origami
+    </a>{" "}
+    team.
+  </p>
+
+  <p class="intro">
+    My research focuses on{" "}
+    <span class="highlight">shape interpolation</span>{" "}
+    and{" "}
+    <span class="highlight">flows</span>.
+  </p>
+
+</div>
+
+<div class="actions">
+
+  <a href={`${import.meta.env.BASE_URL}/publications/`} class="button primary-button">
+    <span>Publications</span>
+    <span class="button-arrow">→</span>
+  </a>
+
+  <a href={`${import.meta.env.BASE_URL}/contact/`} class="button primary-button">
+    Get in touch
+    <span class="button-arrow">→</span>
+  </a>
+
+</div>
+
+  </section>
+
+
+  <!-- =========================
+       RESEARCH INTERESTS
+       ========================= -->
+
+  <section class="research-section">
+
+    <div class="section-header">
+
+      <div>
+        <p class="section-eyebrow">Research</p>
+        <h2>What I'm working on</h2>
+      </div>
+
+    </div>
+
+    <div class="research-grid">
+
+      <div class="research-card">
+        <span class="research-number">01</span>
+
+<div class="research-icon">
+  <svg viewBox="0 0 80 40" aria-hidden="true">
+    <circle cx="16" cy="20" r="11" />
+    <path d="M31 20 H47" />
+    <path d="M43 16 L47 20 L43 24" />
+    <path d="M61 9 L72 20 L61 31 L50 20 Z" />
+  </svg>
+</div>
+        <h3>Shape interpolation</h3>
+
+        <p>
+          Developing methods to smoothly interpolate between geometric
+          shapes while preserving their structure and properties.
+        </p>
+      </div>
+
+
+      <div class="research-card">
+        <span class="research-number">02</span>
+
+<div class="research-icon">
+  <svg viewBox="0 0 80 40" aria-hidden="true">
+    <path d="M5 10 C20 3, 32 3, 48 10 S67 17, 74 10" />
+
+    <path d="M5 20 C20 13, 32 13, 48 20 S67 27, 74 20" />
+
+    <path d="M5 30 C20 23, 32 23, 48 30 S67 37, 74 30" />
+  </svg>
+</div>
+        <h3> Flows</h3>
+
+        <p>
+          Exploring applications and implementations of flow methods without relying on integration schemes.
+        </p>
+      </div>
+
+
+      <div class="research-card">
+        <span class="research-number">03</span>
+
+<div class="research-icon">
+  <svg viewBox="0 0 80 40" aria-hidden="true">
+
+    <!-- connections -->
+    <g>
+      <path d="M15 10 L40 8" />
+      <path d="M15 10 L40 20" />
+      <path d="M15 10 L40 32" />
+
+      <path d="M15 20 L40 8" />
+      <path d="M15 20 L40 20" />
+      <path d="M15 20 L40 32" />
+
+      <path d="M15 30 L40 8" />
+      <path d="M15 30 L40 20" />
+      <path d="M15 30 L40 32" />
+
+      <path d="M40 8 L65 15" />
+      <path d="M40 8 L65 25" />
+      <path d="M40 20 L65 15" />
+      <path d="M40 20 L65 25" />
+      <path d="M40 32 L65 15" />
+      <path d="M40 32 L65 25" />
+    </g>
+
+    <!-- nodes -->
+    <g>
+      <circle cx="15" cy="10" r="3" />
+      <circle cx="15" cy="20" r="3" />
+      <circle cx="15" cy="30" r="3" />
+
+      <circle cx="40" cy="8" r="3" />
+      <circle cx="40" cy="20" r="3" />
+      <circle cx="40" cy="32" r="3" />
+
+      <circle cx="65" cy="15" r="3" />
+      <circle cx="65" cy="25" r="3" />
+    </g>
+
+  </svg>
+</div>
+        <h3>Neural networks</h3>
+
+        <p>
+         Building novel architectures with built-in geometric 
+         constraints for geometry processing tasks.
+        </p>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       PUBLICATIONS
+       ========================= -->
+
+  <section class="featured">
+
+    <div class="section-header">
+
+      <div>
+        <p class="section-eyebrow">Selected work</p>
+        <h2>Publications</h2>
+      </div>
+
+      <a href="/publications" class="see-all">
+        See all <span>→</span>
+      </a>
+
+    </div>
+
+
+    <div class="publication-grid">
+
+  {featuredPublications.map((publication, index) => (
+
+    <article class="publication-card">
+
+      <div class="publication-index">
+        0{index + 1}
+      </div>
+
+      {publication.data.image && (
+        <div class="publication-image-wrapper">
+          <img
+            src={publication.data.image}
+            alt={`Thumbnail of ${publication.data.title}`}
+            class="home-publication-thumbnail"
+          />
+        </div>
+      )}
+
+      <div class="home-publication-content">
+
+        <p class="publication-year">
+          {publication.data.year}
+        </p>
+
+        <h3>
+          {publication.data.title}
+        </h3>
+
+        <p class="publication-authors">
+          {publication.data.authors.join(", ")}
+        </p>
+
+        <p class="publication-venue">
+          {publication.data.venue}
+        </p>
+
+        <a
+          href={`${import.meta.env.BASE_URL}/publications/${publication.id}/`}
+          class="publication-link"
+        >
+          Read paper
+          <span>→</span>
+        </a>
+
+      </div>
+
+    </article>
+
+  ))}
+
+</div>
+
+  </section>
+
+
+  
+
+</BaseLayout>
+
+
+<style>
+
+/* =========================================================
+   HERO
+   ========================================================= */
+.hero h1 strong {
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .hero h1 strong {
+    white-space: normal;
+  }
+}
+.hero {
+  position: relative;
+}
+
+.hero-visual {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 38%;
+  max-width: 460px;
+  aspect-ratio: 1;
+  z-index: 10;
+  pointer-events: auto;
+
+  text-align: center;
+
+}
+
+.hero-visual :global(.ply-video) {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Keep the text above the visual only where necessary */
+.hero .eyebrow,
+.hero h1,
+.hero .hero-description,
+.hero .actions {
+  position: relative;
+  z-index: 2;
+}
+
+.motion-label {
+  display: block;
+  margin-top: -0.3rem;
+  font-size: 0.7rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  opacity: 0.55;
+}
+
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-12px) rotate(8deg);
+  }
+}
+
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+
+  margin: 0 0 1.5rem;
+
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  opacity: 0.65;
+}
+
+.eyebrow-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+  background: currentColor;
+
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
+.hero h1 {
+  max-width: 900px;
+
+  margin: 0;
+
+  font-size: clamp(3.5rem, 9vw, 7rem);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+
+.hero h1 strong {
+  font-weight: 700;
+}
+
+
+.hero-description {
+  max-width: 720px;
+
+  margin-top: 4rem;
+}
+
+.hero-description h2 {
+  margin-bottom: 1.5rem;
+
+  font-size: 1.15rem;
+  font-weight: 700;
+
+  letter-spacing: -0.02em;
+}
+
+.intro {
+  margin: 0 0 1rem;
+
+  font-size: 1.1rem;
+  line-height: 1.8;
+
+  text-align: justify;
+}
+
+.intro a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.highlight {
+  position: relative;
+  display: inline-block;
+
+  font-weight: 600;
+  z-index: 0;
+}
+
+.highlight::after {
+  content: "";
+
+  position: absolute;
+
+  left: -0.12em;
+  right: -0.12em;
+  bottom: 0.08em;
+
+  height: 0.28em;
+
+  border-radius: 999px;
+
+  background: currentColor;
+  opacity: 0.14;
+
+  z-index: -1;
+
+  transform: rotate(-1deg);
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.highlight:hover::after {
+  opacity: 0.22;
+  transform: rotate(0deg) scaleX(1.02);
+}
+
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  margin-top: 2.5rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+
+  padding: 0.8rem 1.2rem;
+
+  border-radius: 999px;
+
+  text-decoration: none;
+
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.button:hover {
+  transform: translateY(-3px);
+}
+
+
+/* =========================
+   PRIMARY BUTTON
+   ========================= */
+
+.primary-button {
+  background: #222;
+  color: #fff;
+}
+
+.primary-button:hover {
+  background: #000;
+}
+
+.button-arrow {
+  transition: transform 0.25s ease;
+}
+
+.primary-button:hover .button-arrow {
+  transform: translateX(4px);
+}
+
+
+/* =========================
+   SECONDARY BUTTON
+   ========================= */
+
+.secondary-button {
+  border: 1px solid currentColor;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.secondary-button:hover {
+  opacity: 1;
+}
+
+
+/* =========================================================
+   SECTIONS
+   ========================================================= */
+.research-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.research-icon {
+  width: 80px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.research-section,
+.featured {
+  padding: 5rem 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  margin-bottom: 2.5rem;
+}
+
+.section-eyebrow {
+  margin: 0 0 0.5rem;
+
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+
+  opacity: 0.5;
+}
+
+.section-header h2 {
+  margin: 0;
+
+  font-size: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+.see-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  font-weight: 600;
+
+  text-decoration: none;
+}
+
+.see-all span {
+  transition: transform 0.25s ease;
+}
+
+.see-all:hover span {
+  transform: translateX(5px);
+}
+
+
+/* =========================================================
+   RESEARCH CARDS
+   ========================================================= */
+
+.research-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.research-card {
+  position: relative;
+
+  min-height: 300px;
+
+  padding: 2rem;
+
+  border: 1px solid currentColor;
+  border-radius: 14px;
+
+  opacity: 0.9;
+
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.research-card:hover {
+  transform: translateY(-7px);
+  opacity: 1;
+
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+}
+
+.research-number {
+  position: absolute;
+
+  top: 1.5rem;
+  right: 1.5rem;
+
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  opacity: 0.35;
+}
+
+.research-icon {
+  margin-bottom: 4rem;
+
+  font-size: 2rem;
+
+  transition: transform 0.3s ease;
+}
+
+.research-card:hover .research-icon {
+  transform: translateX(6px) rotate(-5deg);
+}
+
+.research-card h3 {
+  margin: 0 0 0.75rem;
+
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.research-card p {
+  margin: 0;
+
+  font-size: 0.95rem;
+  line-height: 1.7;
+
+  opacity: 0.65;
+}
+
+
+/* =========================================================
+   PUBLICATIONS
+   ========================================================= */
+
+.publication-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.publication-card {
+  position: relative;
+
+  overflow: hidden;
+
+  border: 1px solid currentColor;
+  border-radius: 14px;
+
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.publication-card:hover {
+  transform: translateY(-7px);
+
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+}
+
+.publication-index {
+  position: absolute;
+
+  top: 1rem;
+  right: 1rem;
+
+  z-index: 2;
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  opacity: 0.45;
+}
+
+.publication-image-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 170px;
+
+  padding: 1rem;
+
+  border-bottom: 1px solid currentColor;
+
+  overflow: hidden;
+}
+
+.home-publication-thumbnail {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  transition: transform 0.45s ease;
+}
+
+.publication-card:hover .home-publication-thumbnail {
+  transform: scale(1.04);
+}
+
+.home-publication-content {
+  width: 100%;
+  padding: 1.5rem;
+}
+
+.publication-year {
+  margin: 0 0 0.6rem;
+
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  opacity: 0.5;
+}
+
+.home-publication-content h3 {
+  margin: 0 0 1rem;
+
+  font-size: 1.1rem;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.publication-authors {
+  margin: 0 0 0.5rem;
+
+  font-size: 0.85rem;
+  line-height: 1.5;
+
+  opacity: 0.65;
+}
+
+.publication-venue {
+  margin: 0;
+
+  font-size: 0.8rem;
+  font-style: italic;
+
+  opacity: 0.5;
+}
+
+.publication-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  margin-top: 1.5rem;
+
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  text-decoration: none;
+}
+
+.publication-link span {
+  transition: transform 0.25s ease;
+}
+
+.publication-link:hover span {
+  transform: translateX(5px);
+}
+
+
+/* =========================================================
+   CTA
+   ========================================================= */
+
+.home-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin: 5rem 0 2rem;
+  padding: 3rem;
+
+  border: 1px solid currentColor;
+  border-radius: 18px;
+}
+
+.home-cta h2 {
+  margin: 0;
+
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.cta-arrow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  font-weight: 600;
+
+  text-decoration: none;
+}
+
+.cta-arrow strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+
+  border: 1px solid currentColor;
+  border-radius: 50%;
+
+  transition:
+    transform 0.3s ease,
+    background 0.3s ease;
+}
+
+.cta-arrow:hover strong {
+  transform: rotate(45deg);
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 800px) {
+
+  .hero {
+    padding: 5rem 0 4rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(3rem, 14vw, 5rem);
+  }
+
+  .hero-description {
+    margin-top: 3rem;
+  }
+
+  .research-grid,
+  .publication-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .research-card {
+    min-height: auto;
+  }
+
+  .research-icon {
+    margin-bottom: 2rem;
+  }
+
+  .home-cta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+
+}
+
+
+@media (max-width: 500px) {
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button {
+    justify-content: center;
+  }
+
+  .section-header {
+    align-items: flex-start;
+    gap: 1rem;
+    flex-direction: column;
+  }
+
+  .hero-decoration {
+    right: -100px;
+    opacity: 0.2;
+  }
+
+}
+
+</style>

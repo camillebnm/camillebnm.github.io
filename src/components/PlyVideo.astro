@@ -1,0 +1,1218 @@
+---
+interface Props {
+  srcs: string[];
+  fps?: number;
+  pointSize?: number;
+  color?: string;
+  backgroundColor?: string;
+  autoRotate?: boolean;
+  shading?: "matcap" | "standard";
+  flatShading?: boolean;
+}
+
+const {
+  srcs,
+  fps = 10,
+  pointSize = 0.01,
+  color = "#d0d0d0",
+  backgroundColor = "transparent",
+  autoRotate = false,
+  shading = "matcap",
+  flatShading = false,
+} = Astro.props;
+---
+
+<div
+  class="ply-video"
+  data-srcs={JSON.stringify(srcs)}
+  data-fps={fps}
+  data-point-size={pointSize}
+  data-color={color}
+  data-auto-rotate={autoRotate ? "true" : "false"}
+  data-shading={shading}
+  data-flat-shading={flatShading ? "true" : "false"}
+  style={`--ply-video-bg: ${backgroundColor};`}
+>
+  <div class="ply-video-canvas-wrapper"></div>
+
+  <div class="ply-video-loading">
+    Chargement du modèle…
+  </div>
+</div>
+
+
+<script>
+  import * as THREE from "three";
+  import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+
+  /*
+   * =========================================
+   * INITIALISATION
+   * =========================================
+   */
+
+  function initPlyVideos() {
+
+    const videos =
+      document.querySelectorAll(
+        ".ply-video:not([data-ply-video-initialized])"
+      );
+
+
+    console.log(
+      "PLY VIDEO: FOUND",
+      videos.length
+    );
+
+
+    videos.forEach((video) => {
+
+      video.dataset.plyVideoInitialized =
+        "true";
+
+
+      const wrapper =
+        video.querySelector(
+          ".ply-video-canvas-wrapper"
+        );
+
+
+      const loadingEl =
+        video.querySelector(
+          ".ply-video-loading"
+        );
+
+
+      if (!wrapper) {
+
+        console.error(
+          "PLY VIDEO: MISSING WRAPPER"
+        );
+
+        return;
+      }
+
+
+      /*
+       * =========================================
+       * PROPRIÉTÉS
+       * =========================================
+       */
+
+      let srcs;
+
+      try {
+
+        srcs = JSON.parse(
+          video.dataset.srcs || "[]"
+        );
+
+      } catch (error) {
+
+        console.error(
+          "PLY VIDEO: INVALID SOURCE DATA",
+          error
+        );
+
+        return;
+      }
+
+
+      if (
+        !Array.isArray(srcs) ||
+        srcs.length === 0
+      ) {
+
+        console.error(
+          "PLY VIDEO: NO PLY SOURCES"
+        );
+
+        return;
+      }
+
+
+      const fps =
+        Number(
+          video.dataset.fps
+        ) || 10;
+
+
+      const pointSize =
+        Number(
+          video.dataset.pointSize
+        ) || 0.01;
+
+
+      const baseColor =
+        video.dataset.color ||
+        "#d0d0d0";
+
+
+      const autoRotate =
+        video.dataset.autoRotate ===
+        "true";
+
+
+      const shading =
+        video.dataset.shading ||
+        "matcap";
+
+
+      const flatShading =
+        video.dataset.flatShading ===
+        "true";
+
+
+      /*
+       * =========================================
+       * SCÈNE
+       * =========================================
+       */
+
+      const scene =
+        new THREE.Scene();
+
+
+      /*
+       * =========================================
+       * CAMÉRA
+       * =========================================
+       */
+
+      const camera =
+        new THREE.PerspectiveCamera(
+          45,
+          1,
+          0.01,
+          100
+        );
+
+
+      camera.position.set(
+        0,
+        0,
+        3
+      );
+
+
+      /*
+       * =========================================
+       * RENDERER
+       * =========================================
+       */
+
+      const renderer =
+  new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+
+      renderer.setClearColor(0x000000, 0);
+
+
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio,
+          2
+        )
+      );
+
+
+      wrapper.appendChild(
+        renderer.domElement
+      );
+
+
+      /*
+       * =========================================
+       * CONTROLES
+       * =========================================
+       */
+
+      const controls =
+        new OrbitControls(
+          camera,
+          renderer.domElement
+        );
+
+
+      controls.enableDamping =
+        true;
+
+
+      controls.dampingFactor =
+        0.08;
+
+
+      controls.autoRotate =
+        autoRotate;
+
+
+      controls.autoRotateSpeed =
+        2;
+
+
+      controls.minDistance =
+        0.05;
+
+
+      controls.maxDistance =
+        50;
+
+
+      /*
+       * =========================================
+       * ÉCLAIRAGE
+       * =========================================
+       */
+
+      scene.add(
+        new THREE.HemisphereLight(
+          0xffffff,
+          0x444455,
+          0.5
+        )
+      );
+
+
+      const keyLight =
+        new THREE.DirectionalLight(
+          0xffffff,
+          1.1
+        );
+
+
+      keyLight.position.set(
+        3,
+        4,
+        5
+      );
+
+
+      scene.add(
+        keyLight
+      );
+
+
+      const fillLight =
+        new THREE.DirectionalLight(
+          0xffffff,
+          0.35
+        );
+
+
+      fillLight.position.set(
+        -4,
+        1,
+        2
+      );
+
+
+      scene.add(
+        fillLight
+      );
+
+
+      const rimLight =
+        new THREE.DirectionalLight(
+          0xffffff,
+          0.5
+        );
+
+
+      rimLight.position.set(
+        -1,
+        3,
+        -4
+      );
+
+
+      scene.add(
+        rimLight
+      );
+
+
+      /*
+       * =========================================
+       * MATCAP
+       * =========================================
+       */
+
+      function createClayMatcap() {
+
+        const size = 256;
+
+
+        const canvas =
+          document.createElement(
+            "canvas"
+          );
+
+
+        canvas.width =
+          size;
+
+        canvas.height =
+          size;
+
+
+        const ctx =
+          canvas.getContext(
+            "2d"
+          );
+
+
+        if (!ctx) {
+          return null;
+        }
+
+
+        const gradient =
+          ctx.createRadialGradient(
+            size * 0.35,
+            size * 0.35,
+            size * 0.05,
+
+            size * 0.5,
+            size * 0.5,
+            size * 0.7
+          );
+
+
+        gradient.addColorStop(
+          0,
+          "#ffffff"
+        );
+
+
+        gradient.addColorStop(
+          0.35,
+          "#eeeeee"
+        );
+
+
+        gradient.addColorStop(
+          0.65,
+          "#d0d0d0"
+        );
+
+
+        gradient.addColorStop(
+          0.85,
+          "#aaaaaa"
+        );
+
+
+        gradient.addColorStop(
+          1,
+          "#858585"
+        );
+
+
+        ctx.fillStyle =
+          gradient;
+
+
+        ctx.fillRect(
+          0,
+          0,
+          size,
+          size
+        );
+
+
+        const texture =
+          new THREE.CanvasTexture(
+            canvas
+          );
+
+
+        texture.colorSpace =
+          THREE.SRGBColorSpace;
+
+
+        return texture;
+      }
+
+
+      const clayMatcap =
+        createClayMatcap();
+
+
+      /*
+       * =========================================
+       * FRAMES
+       * =========================================
+       *
+       * Chaque PLY devient un objet Three.js.
+       *
+       * Un seul est visible à la fois.
+       */
+
+      const frames = [];
+
+
+      /*
+       * =========================================
+       * CRÉATION DU MATÉRIAU
+       * =========================================
+       */
+
+      function createMaterial(
+        geometry
+      ) {
+
+        const hasColors =
+          !!geometry.getAttribute(
+            "color"
+          );
+
+
+        if (
+          shading === "matcap" &&
+          clayMatcap
+        ) {
+
+          return new THREE.MeshMatcapMaterial({
+            color:
+              hasColors
+                ? 0xffffff
+                : baseColor,
+
+            vertexColors:
+              hasColors,
+
+            matcap:
+              clayMatcap,
+
+            flatShading,
+
+            side:
+              THREE.DoubleSide
+          });
+        }
+
+
+        return new THREE.MeshStandardMaterial({
+          color:
+            hasColors
+              ? 0xffffff
+              : baseColor,
+
+          vertexColors:
+            hasColors,
+
+          flatShading,
+
+          side:
+            THREE.DoubleSide
+        });
+      }
+
+
+      /*
+       * =========================================
+       * CRÉATION D'UNE FRAME
+       * =========================================
+       */
+
+      function createObject(
+        geometry
+      ) {
+
+        geometry.computeVertexNormals();
+
+
+        const hasFaces =
+          geometry.index !== null &&
+          geometry.index.count > 0;
+
+
+        const hasColors =
+          !!geometry.getAttribute(
+            "color"
+          );
+
+
+        if (hasFaces) {
+
+          const material =
+            createMaterial(
+              geometry
+            );
+
+
+          return new THREE.Mesh(
+            geometry,
+            material
+          );
+        }
+
+
+        const material =
+          new THREE.PointsMaterial({
+            size:
+              pointSize,
+
+            color:
+              hasColors
+                ? 0xffffff
+                : baseColor,
+
+            vertexColors:
+              hasColors,
+
+            sizeAttenuation:
+              true
+          });
+
+
+        return new THREE.Points(
+          geometry,
+          material
+        );
+      }
+
+
+      /*
+       * =========================================
+       * CHARGEMENT DES PLY
+       * =========================================
+       */
+
+      const loader =
+        new PLYLoader();
+
+
+      function loadFrame(
+        src
+      ) {
+
+        return new Promise(
+          function (
+            resolve,
+            reject
+          ) {
+
+            loader.load(
+              src,
+
+              function (
+                geometry
+              ) {
+
+                const object =
+                  createObject(
+                    geometry
+                  );
+
+
+                /*
+                 * Toutes les frames sont
+                 * centrées indépendamment.
+                 */
+
+                const box =
+                  new THREE.Box3()
+                    .setFromObject(
+                      object
+                    );
+
+
+                const center =
+                  box.getCenter(
+                    new THREE.Vector3()
+                  );
+
+
+                object.position.sub(
+                  center
+                );
+
+
+                object.visible =
+                  false;
+
+
+                scene.add(
+                  object
+                );
+
+
+                resolve(
+                  object
+                );
+              },
+
+              undefined,
+
+              function (
+                error
+              ) {
+
+                console.error(
+                  "PLY VIDEO: LOAD ERROR",
+                  src,
+                  error
+                );
+
+
+                reject(
+                  error
+                );
+              }
+            );
+          }
+        );
+      }
+
+
+      /*
+       * =========================================
+       * CADRAGE GLOBAL
+       * =========================================
+       *
+       * On calcule une taille commune pour toutes
+       * les frames afin que la caméra ne change
+       * jamais pendant l'animation.
+       */
+
+      function fitCamera() {
+
+        if (
+          frames.length === 0
+        ) {
+          return;
+        }
+
+
+        const globalBox =
+          new THREE.Box3();
+
+
+        frames.forEach(
+          function (
+            object
+          ) {
+
+            const box =
+              new THREE.Box3()
+                .setFromObject(
+                  object
+                );
+
+
+            globalBox.union(
+              box
+            );
+          }
+        );
+
+
+        const sphere =
+          globalBox.getBoundingSphere(
+            new THREE.Sphere()
+          );
+
+
+        const radius =
+          sphere.radius || 1;
+
+
+        const distance =
+          (
+            radius /
+            Math.sin(
+              (
+                camera.fov *
+                Math.PI
+              ) / 360
+            )
+          ) * 0.75;
+
+
+        camera.position.set(
+          0,
+          0,
+          distance
+        );
+
+
+        camera.near =
+          distance / 100;
+
+
+        camera.far =
+          distance * 100;
+
+
+        camera.updateProjectionMatrix();
+
+
+        controls.target.set(
+          0,
+          0,
+          0
+        );
+
+
+        controls.update();
+      }
+
+
+      /*
+       * =========================================
+       * AFFICHAGE D'UNE FRAME
+       * =========================================
+       */
+
+      function showFrame(
+        index
+      ) {
+
+        frames.forEach(
+          function (
+            object,
+            i
+          ) {
+
+            object.visible =
+              i === index;
+          }
+        );
+      }
+
+
+      /*
+       * =========================================
+       * CHARGEMENT DE TOUTES LES FRAMES
+       * =========================================
+       */
+
+      async function loadAllFrames() {
+
+        try {
+
+          const loaded =
+            await Promise.all(
+              srcs.map(
+                function (
+                  src
+                ) {
+
+                  return loadFrame(
+                    src
+                  );
+                }
+              )
+            );
+
+
+          frames.push(
+            ...loaded
+          );
+
+
+          if (
+            frames.length === 0
+          ) {
+
+            throw new Error(
+              "Aucune frame chargée"
+            );
+          }
+
+
+          /*
+           * Première frame visible
+           */
+
+          showFrame(0);
+
+
+          /*
+           * Cadrage commun
+           */
+
+          fitCamera();
+
+
+          if (loadingEl) {
+            loadingEl.remove();
+          }
+
+
+          startAnimation();
+
+
+        } catch (error) {
+
+          console.error(
+            "PLY VIDEO: LOADING FAILED",
+            error
+          );
+
+
+          if (loadingEl) {
+
+            loadingEl.textContent =
+              "Erreur de chargement des modèles";
+          }
+        }
+      }
+
+
+      /*
+       * =========================================
+       * ANIMATION BOOMERANG
+       * =========================================
+       *
+       * Exemple avec 4 frames :
+       *
+       * 0 → 1 → 2 → 3 → 2 → 1 → 0 → 1...
+       */
+
+      let frameIndex = 0;
+
+      let direction = 1;
+
+      let lastFrameTime =
+        performance.now();
+
+
+      const frameDuration =
+        1000 / fps;
+
+
+      function updateAnimation(
+        currentTime
+      ) {
+
+        const elapsed =
+          currentTime -
+          lastFrameTime;
+
+
+        if (
+          elapsed >=
+          frameDuration
+        ) {
+
+          /*
+           * On conserve le temps restant
+           * plutôt que de repartir exactement
+           * de currentTime.
+           */
+
+          lastFrameTime +=
+            frameDuration;
+
+
+          /*
+           * Avance / recule
+           */
+
+          frameIndex +=
+            direction;
+
+
+          /*
+           * Arrivée à la dernière frame
+           */
+
+          if (
+            frameIndex >=
+            frames.length - 1
+          ) {
+
+            frameIndex =
+              frames.length - 1;
+
+            direction =
+              -1;
+          }
+
+
+          /*
+           * Retour à la première frame
+           */
+
+          else if (
+            frameIndex <= 0
+          ) {
+
+            frameIndex =
+              0;
+
+            direction =
+              1;
+          }
+
+
+          showFrame(
+            frameIndex
+          );
+        }
+      }
+
+
+      /*
+       * =========================================
+       * BOUCLE DE RENDU
+       * =========================================
+       */
+
+      let frameId =
+        null;
+
+
+      function animate(
+        currentTime
+      ) {
+
+        updateAnimation(
+          currentTime
+        );
+
+
+        controls.update();
+
+
+        renderer.render(
+          scene,
+          camera
+        );
+
+
+        frameId =
+          requestAnimationFrame(
+            animate
+          );
+      }
+
+
+      function startAnimation() {
+
+        lastFrameTime =
+          performance.now();
+
+
+        if (
+          frameId === null
+        ) {
+
+          frameId =
+            requestAnimationFrame(
+              animate
+            );
+        }
+      }
+
+
+      /*
+       * =========================================
+       * RESIZE
+       * =========================================
+       */
+
+      function resize() {
+
+        const width =
+          wrapper.clientWidth;
+
+
+        const height =
+          wrapper.clientHeight;
+
+
+        if (
+          !width ||
+          !height
+        ) {
+          return;
+        }
+
+
+        camera.aspect =
+          width / height;
+
+
+        camera.updateProjectionMatrix();
+
+
+        renderer.setSize(
+          width,
+          height
+        );
+      }
+
+
+      const resizeObserver =
+        new ResizeObserver(
+          resize
+        );
+
+
+      resizeObserver.observe(
+        wrapper
+      );
+
+
+      resize();
+
+
+      /*
+       * =========================================
+       * DÉMARRAGE
+       * =========================================
+       */
+
+      loadAllFrames();
+
+
+      /*
+       * =========================================
+       * CLEANUP
+       * =========================================
+       */
+
+      const cleanupObserver =
+        new MutationObserver(
+          function () {
+
+            if (
+              !document.body.contains(
+                video
+              )
+            ) {
+
+              if (
+                frameId !== null
+              ) {
+
+                cancelAnimationFrame(
+                  frameId
+                );
+              }
+
+
+              resizeObserver.disconnect();
+
+
+              controls.dispose();
+
+
+              frames.forEach(
+                function (
+                  object
+                ) {
+
+                  scene.remove(
+                    object
+                  );
+
+
+                  object.geometry.dispose();
+
+
+                  if (
+                    object.material
+                  ) {
+
+                    object.material.dispose();
+                  }
+                }
+              );
+
+
+              renderer.dispose();
+
+
+              if (
+                clayMatcap
+              ) {
+
+                clayMatcap.dispose();
+              }
+
+
+              cleanupObserver.disconnect();
+            }
+          }
+        );
+
+
+      cleanupObserver.observe(
+        document.body,
+        {
+          childList: true,
+          subtree: true
+        }
+      );
+    });
+  }
+
+
+  /*
+   * =========================================
+   * ASTRO
+   * =========================================
+   */
+
+  initPlyVideos();
+
+
+  document.addEventListener(
+    "astro:page-load",
+    initPlyVideos
+  );
+</script>
+
+
+<style>
+ .ply-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+  .ply-video-canvas-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ply-video-canvas-wrapper canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: grab;
+  }
+
+  .ply-video-canvas-wrapper canvas:active {
+    cursor: grabbing;
+  }
+
+  .ply-video-loading {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: white;
+
+    font-size: 0.85rem;
+
+    background:
+      rgb(0 0 0 / 30%);
+
+    pointer-events: none;
+  }
+</style>

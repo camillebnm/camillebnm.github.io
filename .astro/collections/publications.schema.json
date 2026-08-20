@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "year": {
+      "type": "number"
+    },
+    "venue": {
+      "type": "string"
+    },
+    "doi": {
+      "type": "string"
+    },
+    "hal": {
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "comparison": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "src",
+          "alt"
+        ]
+      }
+    },
+    "comparisonLabels": {
+      "maxItems": 2,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "comparison4": {
+      "maxItems": 4,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "src",
+          "alt"
+        ]
+      }
+    },
+    "comparison4Labels": {
+      "maxItems": 4,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "gallery": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "src",
+          "alt"
+        ]
+      }
+    },
+    "videoComparison": {
+      "type": "object",
+      "properties": {
+        "videos": {
+          "minItems": 2,
+          "maxItems": 2,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "frames": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "src": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "src"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "frames"
+            ]
+          }
+        },
+        "labels": {
+          "maxItems": 2,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fps": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "videos"
+      ]
+    },
+    "plyViewer": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "pointSize": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          },
+          "backgroundColor": {
+            "type": "string"
+          },
+          "autoRotate": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "src"
+        ]
+      }
+    },
+    "plyVideo": {
+      "type": "object",
+      "properties": {
+        "srcs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fps": {
+          "type": "number"
+        },
+        "pointSize": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "backgroundColor": {
+          "type": "string"
+        },
+        "autoRotate": {
+          "type": "boolean"
+        },
+        "shading": {
+          "type": "string",
+          "enum": [
+            "matcap",
+            "standard"
+          ]
+        },
+        "flatShading": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "srcs"
+      ]
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "authors",
+    "year",
+    "venue"
+  ]
+}

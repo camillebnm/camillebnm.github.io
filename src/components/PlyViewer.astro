@@ -1,0 +1,416 @@
+---
+interface Props {
+  src: string;
+  pointSize?: number;
+  color?: string;
+  backgroundColor?: string;
+  autoRotate?: boolean;
+  /**
+   * "matcap" (défaut) : rendu "clay" qui fait ressortir la courbure
+   * et les détails du maillage sans dépendre d'un éclairage de scène.
+   * "standard" : PBR classique avec éclairage 3 points.
+   */
+  shading?: "matcap" | "standard";
+  /** Facettes visibles (utile pour inspecter la discrétisation du maillage) */
+  flatShading?: boolean;
+}
+
+const {
+  src,
+  pointSize = 0.01,
+  color = "#d0d0d0",
+  backgroundColor = "#111111",
+  autoRotate = false,
+  shading = "matcap",
+  flatShading = false,
+} = Astro.props;
+---
+
+<div
+  class="ply-viewer"
+  data-src={src}
+  data-point-size={pointSize}
+  data-color={color}
+  data-auto-rotate={autoRotate ? "true" : "false"}
+  data-shading={shading}
+  data-flat-shading={flatShading ? "true" : "false"}
+  style={`--ply-bg: ${backgroundColor};`}
+>
+  <div class="ply-viewer-canvas-wrapper"></div>
+  <div class="ply-viewer-loading">Chargement du modèle…</div>
+</div>
+
+<script>
+  import * as THREE from "three";
+  import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+  /*
+   * =========================================
+   * INITIALISATION
+   * =========================================
+   */
+
+  function initPlyViewers() {
+    const viewers = document.querySelectorAll(
+      ".ply-viewer:not([data-ply-initialized])"
+    );
+
+    console.log("PLY VIEWER: FOUND", viewers.length);
+
+    viewers.forEach((viewer) => {
+      viewer.dataset.plyInitialized = "true";
+
+      const wrapper = viewer.querySelector(".ply-viewer-canvas-wrapper");
+      const loadingEl = viewer.querySelector(".ply-viewer-loading");
+
+      if (!wrapper) {
+        console.error("PLY VIEWER: MISSING WRAPPER");
+        return;
+      }
+
+      const src = viewer.dataset.src;
+      const pointSize = Number(viewer.dataset.pointSize) || 0.01;
+      const baseColor = viewer.dataset.color || "#4a90d9";
+      const autoRotate = viewer.dataset.autoRotate === "true";
+      const shading = viewer.dataset.shading || "matcap";
+      const flatShading = viewer.dataset.flatShading === "true";
+
+      /*
+       * =========================================
+       * SCÈNE / CAMÉRA / RENDU
+       * =========================================
+       */
+
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+      camera.position.set(0, 0, 3);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      wrapper.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.autoRotate = autoRotate;
+      controls.autoRotateSpeed = 2;
+      controls.minDistance = 0.05;
+      controls.maxDistance = 50;
+
+      // Éclairage 3 points : utile uniquement en mode "standard"
+      // (sans effet en mode "matcap", qui ignore les lumières de scène).
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 0.5));
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+      keyLight.position.set(3, 4, 5);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+      fillLight.position.set(-4, 1, 2);
+      scene.add(fillLight);
+
+      const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+      rimLight.position.set(-1, 3, -4);
+      scene.add(rimLight);
+
+      /*
+       * =========================================
+       * MATCAP "CLAY"
+       * =========================================
+       *
+       * Généré en canvas plutôt que chargé depuis un fichier :
+       * un dégradé radial suffit à donner un rendu "argile" qui
+       * révèle bien la courbure d'un maillage, sans texture externe.
+       */
+
+      function createClayMatcap() {
+	  const size = 256;
+
+	  const canvas =
+	    document.createElement("canvas");
+
+	  canvas.width = size;
+	  canvas.height = size;
+
+	  const ctx =
+	    canvas.getContext("2d");
+
+	  if (!ctx) {
+	    return null;
+	  }
+
+	  const gradient =
+	    ctx.createRadialGradient(
+	      size * 0.35,
+	      size * 0.35,
+	      size * 0.05,
+
+	      size * 0.5,
+	      size * 0.5,
+	      size * 0.7
+	    );
+
+	  gradient.addColorStop(
+	    0,
+	    "#ffffff"
+	  );
+
+	  gradient.addColorStop(
+	    0.35,
+	    "#eeeeee"
+	  );
+
+	  gradient.addColorStop(
+	    0.65,
+	    "#d0d0d0"
+	  );
+
+	  gradient.addColorStop(
+	    0.85,
+	    "#aaaaaa"
+	  );
+
+	  gradient.addColorStop(
+	    1,
+	    "#858585"
+	  );
+
+	  ctx.fillStyle =
+	    gradient;
+
+	  ctx.fillRect(
+	    0,
+	    0,
+	    size,
+	    size
+	  );
+
+	  const texture =
+	    new THREE.CanvasTexture(
+	      canvas
+	    );
+
+	  texture.colorSpace =
+	    THREE.SRGBColorSpace;
+
+	  return texture;
+	}
+
+      const clayMatcap = createClayMatcap();
+
+      let frameId = null;
+
+      /*
+       * =========================================
+       * CADRAGE AUTOMATIQUE
+       * =========================================
+       */
+
+      function fitCameraToObject(object) {
+        const box = new THREE.Box3().setFromObject(object);
+        const sphere = box.getBoundingSphere(new THREE.Sphere());
+        const radius = sphere.radius || 1;
+
+        // Recentre l'objet à l'origine plutôt que de bouger la caméra
+        // sur un centre arbitraire : plus stable pour l'OrbitControls.
+        object.position.sub(sphere.center);
+
+        const distance =
+          (radius / Math.sin((camera.fov * Math.PI) / 360)) * 1.3;
+
+        camera.position.set(0, 0, distance);
+        camera.near = distance / 100;
+        camera.far = distance * 100;
+        camera.updateProjectionMatrix();
+
+        controls.target.set(0, 0, 0);
+        controls.update();
+      }
+
+      /*
+       * =========================================
+       * CHARGEMENT DU .PLY
+       * =========================================
+       */
+
+      function loadPly() {
+        const loader = new PLYLoader();
+
+        loader.load(
+          src,
+          (geometry) => {
+            geometry.computeVertexNormals();
+
+            const hasFaces =
+              geometry.index !== null && geometry.index.count > 0;
+
+            const hasColors = !!geometry.getAttribute("color");
+
+            let object;
+
+
+		if (hasFaces) {
+		  let material;
+
+		  if (shading === "matcap") {
+		    material = new THREE.MeshMatcapMaterial({
+		      color: hasColors ? 0xffffff : "#d0d0d0",
+		      vertexColors: hasColors,
+		      matcap: clayMatcap,
+		      flatShading,
+		      side: THREE.DoubleSide,
+		    });
+		  } else {
+		    material = new THREE.MeshStandardMaterial({
+		      color: hasColors ? 0xffffff : "#d0d0d0",
+		      vertexColors: hasColors,
+		      flatShading,
+		      side: THREE.DoubleSide,
+		    });
+		  }
+
+		  object = new THREE.Mesh(
+		    geometry,
+		    material
+		  );
+
+		} else {
+		  const material =
+		    new THREE.PointsMaterial({
+		      size: pointSize,
+		      color: hasColors
+			? 0xffffff
+			: "#d0d0d0",
+		      vertexColors: hasColors,
+		      sizeAttenuation: true,
+		    });
+
+		  object =
+		    new THREE.Points(
+		      geometry,
+		      material
+		    );
+		}
+
+            scene.add(object);
+            fitCameraToObject(object);
+
+            if (loadingEl) loadingEl.remove();
+          },
+          undefined,
+          (error) => {
+            console.error("PLY VIEWER: LOAD ERROR", src, error);
+            if (loadingEl) {
+              loadingEl.textContent = "Erreur de chargement du modèle";
+            }
+          }
+        );
+      }
+
+      /*
+       * =========================================
+       * RESIZE
+       * =========================================
+       */
+
+      function resize() {
+        const width = wrapper.clientWidth;
+        const height = wrapper.clientHeight;
+
+        if (!width || !height) return;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+      }
+
+      const resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(wrapper);
+      resize();
+
+      /*
+       * =========================================
+       * BOUCLE DE RENDU
+       * =========================================
+       */
+
+      function animate() {
+        controls.update();
+        renderer.render(scene, camera);
+        frameId = requestAnimationFrame(animate);
+      }
+
+      loadPly();
+      animate();
+
+      /*
+       * =========================================
+       * NETTOYAGE (navigation client-side)
+       * =========================================
+       *
+       * Sans ça, chaque navigation qui détruit et
+       * recrée ce composant laisse un contexte WebGL
+       * actif en mémoire → fuite GPU progressive.
+       */
+
+      const cleanupObserver = new MutationObserver(() => {
+        if (!document.body.contains(viewer)) {
+          cancelAnimationFrame(frameId);
+          resizeObserver.disconnect();
+          controls.dispose();
+          renderer.dispose();
+          cleanupObserver.disconnect();
+        }
+      });
+
+      cleanupObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+    });
+  }
+
+  initPlyViewers();
+  document.addEventListener("astro:page-load", initPlyViewers);
+</script>
+
+<style>
+  .ply-viewer {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--ply-bg, #111);
+  }
+
+  .ply-viewer-canvas-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ply-viewer-canvas-wrapper canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: grab;
+  }
+
+  .ply-viewer-canvas-wrapper canvas:active {
+    cursor: grabbing;
+  }
+
+  .ply-viewer-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.85rem;
+    background: rgb(0 0 0 / 30%);
+    pointer-events: none;
+  }
+</style>

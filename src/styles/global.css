@@ -1,0 +1,1295 @@
+@import "katex/dist/katex.min.css";
+
+
+/* =========================
+   Reset minimal
+   ========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: #171717;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+
+/* =========================
+   Layout
+   ========================= */
+
+header {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+nav {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.25rem 2rem;
+
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+nav a {
+  color: #555;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+nav a:hover {
+  color: #000;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
+}
+
+footer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+
+  color: #777;
+  font-size: 0.85rem;
+}
+
+
+/* =========================
+   Typography
+   ========================= */
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  letter-spacing: -0.04em;
+}
+
+p {
+  max-width: 65ch;
+}
+
+.publication-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.publication-content p {
+  max-width: none;
+  text-align: justify;
+}
+
+
+/* =========================
+   Homepage
+   ========================= */
+
+.hero {
+  min-height: 70vh;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.eyebrow {
+  margin-bottom: 1rem;
+
+  color: #666;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hero h1 {
+  margin: 0;
+}
+
+.intro {
+  max-width: 900px;
+  margin: 2rem auto 0;
+
+  color: #555;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  text-align: justify;
+}
+.intro br {
+  display: block;
+  content: "";
+  margin-bottom: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+
+  margin-top: 2rem;
+}
+
+.button {
+  display: inline-block;
+
+  padding: 0.8rem 1.2rem;
+
+  background: #171717;
+  color: white;
+
+  border-radius: 6px;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.button:hover {
+  background: #333;
+  transform: translateY(-2px);
+}
+
+.button.secondary {
+  background: #f0f0f0;
+  color: #171717;
+}
+
+.button.secondary:hover {
+  background: #e5e5e5;
+}
+
+
+/* =========================
+   Featured publications
+   ========================= */
+
+.featured {
+  padding: 6rem 0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+
+  margin-bottom: 2rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.section-header a {
+  color: #666;
+}
+
+.publication-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 1.5rem;
+}
+
+.publication-card {
+  padding: 2rem;
+
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.publication-card:hover {
+  transform: translateY(-4px);
+
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 8%);
+}
+
+.publication-year {
+  margin: 0;
+
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.publication-card h3 {
+  margin-top: 1rem;
+}
+
+.publication-card p {
+  color: #666;
+}
+
+
+/* =========================
+   Publications
+   ========================= */
+
+.publications-header {
+  max-width: 700px;
+  margin-bottom: 5rem;
+}
+
+.publications-header h1 {
+  margin-bottom: 1.5rem;
+}
+
+.publication-list {
+  border-top: 1px solid #e5e5e5;
+}
+
+.publication-list-item {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 2rem;
+
+  padding: 2rem 0;
+
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.publication-list-item h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.4rem;
+}
+
+.publication-list-item h2 a {
+  transition: color 0.2s ease;
+}
+
+.publication-list-item h2 a:hover {
+  color: #666;
+}
+
+.publication-list-item p {
+  margin: 0.3rem 0;
+}
+
+.publication-list-item .publication-authors {
+  color: #555;
+}
+
+.publication-list-item .publication-venue {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+
+/* =========================
+   Publication page
+   ========================= */
+
+.publication-image {
+  display: block;
+
+  width: 100%;
+  max-width: 1000px;
+  height: auto;
+
+  margin-bottom: 3rem;
+
+  border-radius: 12px;
+}
+
+.publication-thumbnail {
+  width: 220px;
+  aspect-ratio: 16 / 9;
+
+  object-fit: cover;
+
+  border-radius: 8px;
+}
+
+
+/* =========================
+   Slider controls
+   ========================= */
+
+.publication-list-content {
+  min-width: 0;
+}
+
+.slider-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+
+  padding: 0;
+
+  background: #ffffff;
+  color: #171717;
+
+  border: 1px solid #ddd;
+  border-radius: 50%;
+
+  cursor: pointer;
+}
+
+.slider-controls button:hover {
+  background: #f5f5f5;
+}
+
+.slider-controls svg {
+  width: 20px;
+  height: 20px;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
+/* =========================
+   Fullscreen icon
+   ========================= */
+
+/* Icône fullscreen par défaut */
+.icon-close {
+  display: none;
+}
+
+/* Quand le slider est en plein écran */
+.image-slider.is-fullscreen .icon-fullscreen {
+  display: none;
+}
+
+.image-slider.is-fullscreen .icon-close {
+  display: block;
+}
+
+
+/* =========================================================
+   COMPARATEUR 4 IMAGES
+   ========================================================= */
+
+
+/* =========================
+   Barre verticale
+   ========================= */
+
+.comparison4-vertical {
+  position: absolute;
+
+  top: 0;
+  bottom: 0;
+
+  left: 50%;
+
+  width: 2px;
+
+  background: white;
+
+  transform:
+    translateX(-50%);
+
+  z-index: 10;
+
+  pointer-events: none;
+
+  box-shadow:
+    0 0 0 1px
+    rgb(0 0 0 / 15%),
+
+    0 0 10px
+    rgb(0 0 0 / 20%);
+}
+
+
+/* =========================
+   Barre horizontale
+   ========================= */
+
+.comparison4-horizontal {
+  position: absolute;
+
+  left: 0;
+  right: 0;
+
+  top: 50%;
+
+  height: 2px;
+
+  background: white;
+
+  transform:
+    translateY(-50%);
+
+  z-index: 10;
+
+  pointer-events: none;
+
+  box-shadow:
+    0 0 0 1px
+    rgb(0 0 0 / 15%),
+
+    0 0 10px
+    rgb(0 0 0 / 20%);
+}
+
+
+/* =========================
+   POINT CENTRAL
+   ========================= */
+
+.comparison4-handle {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 46px;
+  height: 46px;
+
+  padding: 0;
+
+  transform:
+    translate(-50%, -50%);
+
+  display: block;
+
+  background: white;
+
+  border: 1px solid #ccc;
+
+  border-radius: 50%;
+
+  z-index: 20;
+
+  cursor: move;
+
+  touch-action: none;
+
+  box-shadow:
+    0 3px 12px
+    rgb(0 0 0 / 20%);
+}
+
+
+/* =========================
+   FLÈCHES
+   ========================= */
+
+.comparison4-handle span {
+  position: absolute;
+
+  display: block;
+
+  width: 0;
+  height: 0;
+}
+
+
+/* =========================
+   Flèche haut
+   ========================= */
+
+.comparison4-handle .arrow-up {
+  left: 50%;
+  top: 7px;
+
+  transform:
+    translateX(-50%);
+
+  border-left:
+    5px solid transparent;
+
+  border-right:
+    5px solid transparent;
+
+  border-bottom:
+    7px solid #333;
+}
+
+
+/* =========================
+   Flèche bas
+   ========================= */
+
+.comparison4-handle .arrow-down {
+  left: 50%;
+  bottom: 7px;
+
+  transform:
+    translateX(-50%);
+
+  border-left:
+    5px solid transparent;
+
+  border-right:
+    5px solid transparent;
+
+  border-top:
+    7px solid #333;
+}
+
+
+/* =========================
+   Flèche gauche
+   ========================= */
+
+.comparison4-handle .arrow-left {
+  left: 7px;
+  top: 50%;
+
+  transform:
+    translateY(-50%);
+
+  border-top:
+    5px solid transparent;
+
+  border-bottom:
+    5px solid transparent;
+
+  border-right:
+    7px solid #333;
+}
+
+
+/* =========================
+   Flèche droite
+   ========================= */
+
+.comparison4-handle .arrow-right {
+  right: 7px;
+  top: 50%;
+
+  transform:
+    translateY(-50%);
+
+  border-top:
+    5px solid transparent;
+
+  border-bottom:
+    5px solid transparent;
+
+  border-left:
+    7px solid #333;
+}
+
+
+/* =========================
+   Petit effet au survol
+   ========================= */
+
+.comparison4-handle:hover {
+  transform:
+    translate(-50%, -50%)
+    scale(1.08);
+}
+
+
+/* =========================
+   LABELS DES 4 IMAGES
+   ========================= */
+
+.comparison4-label {
+  position: absolute;
+
+  /*
+   * Au-dessus des images, des barres
+   * et du bouton central.
+   */
+  z-index: 100;
+
+  padding: 0.35rem 0.7rem;
+
+  background:
+    rgb(255 255 255 / 90%);
+
+  color: #333;
+
+  border:
+    1px solid
+    rgb(0 0 0 / 10%);
+
+  border-radius: 6px;
+
+  font-size: 0.8rem;
+
+  font-weight: 500;
+
+  line-height: 1.2;
+
+  box-shadow:
+    0 2px 8px
+    rgb(0 0 0 / 12%);
+
+  pointer-events: none;
+
+  backdrop-filter: blur(4px);
+}
+
+
+/* =========================
+   Label 1 — haut gauche
+   ========================= */
+
+.comparison4-label-1 {
+  top: 14px;
+  left: 14px;
+}
+
+
+/* =========================
+   Label 2 — haut droite
+   ========================= */
+
+.comparison4-label-2 {
+  top: 14px;
+  right: 14px;
+}
+
+
+/* =========================
+   Label 3 — bas gauche
+   ========================= */
+
+.comparison4-label-3 {
+  bottom: 14px;
+  left: 14px;
+}
+
+
+/* =========================
+   Label 4 — bas droite
+   ========================= */
+
+.comparison4-label-4 {
+  bottom: 14px;
+  right: 14px;
+}
+
+
+/* =========================
+   Mobile
+   ========================= */
+
+@media (max-width: 700px) {
+
+  .comparison4-handle {
+    width: 40px;
+    height: 40px;
+  }
+
+
+  .comparison4-handle .arrow-up {
+    top: 6px;
+  }
+
+
+  .comparison4-handle .arrow-down {
+    bottom: 6px;
+  }
+
+
+  .comparison4-handle .arrow-left {
+    left: 6px;
+  }
+
+
+  .comparison4-handle .arrow-right {
+    right: 6px;
+  }
+
+
+  .comparison4-label {
+    padding: 0.25rem 0.5rem;
+
+    font-size: 0.7rem;
+  }
+
+
+  .comparison4-label-1 {
+    top: 8px;
+    left: 8px;
+  }
+
+
+  .comparison4-label-2 {
+    top: 8px;
+    right: 8px;
+  }
+
+
+  .comparison4-label-3 {
+    bottom: 8px;
+    left: 8px;
+  }
+
+
+  .comparison4-label-4 {
+    bottom: 8px;
+    right: 8px;
+  }
+}
+
+.ply-video-row {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.ply-video-row > .ply-video {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .ply-video-row {
+    flex-direction: column;
+  }
+
+  .ply-video-row > .ply-video {
+    width: 100%;
+  }
+}
+/* =========================
+   Homepage intro links
+   ========================= */
+.intro a {
+  color: #6366f1;
+  font-weight: 600;
+  text-decoration: none;
+
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 2px;
+
+  transition: background-size 0.25s ease;
+}
+
+.intro a:hover {
+  background-size: 100% 2px;
+}
+
+.intro .highlight {
+  font-weight: 700;
+  color: inherit;
+}
+
+/* =========================
+   publi page
+   ========================= */
+   
+   .publication-list-item {
+  position: relative;
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+
+  border: 1px solid transparent;
+  border-radius: 12px;
+
+  transition:
+    transform 0.25s ease,
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+
+  overflow: hidden;
+}
+
+.publication-list-item:hover {
+  transform: translateY(-4px);
+  background-color: #fafafa;
+  border-color: #e5e5e5;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================
+   IMAGE
+   ========================= */
+
+.publication-thumbnail {
+  width: 220px;
+  height: 150px;
+  flex-shrink: 0;
+
+  object-fit: cover;
+  border-radius: 8px;
+
+  transition:
+    transform 0.4s ease,
+    filter 0.4s ease;
+}
+
+.publication-list-item:hover .publication-thumbnail {
+  transform: scale(1.04);
+  filter: brightness(1.03);
+}
+
+
+/* =========================
+   CONTENT
+   ========================= */
+
+.publication-list-content {
+  position: relative;
+  flex: 1;
+}
+
+.publication-year {
+  margin: 0 0 0.4rem;
+
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.publication-list-content h2 {
+  margin: 0 0 0.6rem;
+
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+
+.publication-list-content h2 a {
+  color: inherit;
+  text-decoration: none;
+
+  transition: color 0.2s ease;
+}
+
+.publication-list-item:hover h2 a {
+  color: #555;
+}
+
+.publication-authors {
+  margin: 0 0 0.4rem;
+
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.publication-venue {
+  margin: 0;
+
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #888;
+}
+
+
+/* =========================
+   ARROW
+   ========================= */
+
+.publication-list-item::after {
+  content: "↗";
+
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.2rem;
+
+  font-size: 1.2rem;
+  color: #999;
+
+  opacity: 0;
+  transform: translate(-6px, 6px);
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.publication-list-item:hover::after {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+
+/* =========================
+   HEADER
+   ========================= */
+
+.publications-header {
+  margin-bottom: 3rem;
+}
+
+.publications-header h1 {
+  margin: 0.3rem 0 0;
+}
+
+.eyebrow {
+  margin: 0;
+
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+
+  color: #999;
+}
+
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width: 700px) {
+  .publication-list-item {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .publication-thumbnail {
+    width: 100%;
+    height: 180px;
+  }
+
+  .publication-list-content h2 {
+    font-size: 1.15rem;
+  }
+}
+
+.publication-list-item {
+  color: inherit;
+  text-decoration: none;
+}
+
+
+/* =========================
+   contact page
+   ========================= */
+   
+   .contact-links {
+  max-width: 900px;
+  margin: 3rem auto 0;
+
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+
+/* =========================
+   CONTACT CARD
+   ========================= */
+
+.contact-card {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+
+  min-height: 90px;
+  padding: 1.2rem 1.4rem;
+
+  color: inherit;
+  text-decoration: none;
+
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+
+  background: #fff;
+
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    background-color 0.25s ease;
+
+  overflow: hidden;
+}
+
+
+/* =========================
+   HOVER
+   ========================= */
+
+.contact-card:hover {
+  transform: translateY(-4px);
+
+  border-color: #d5d5d5;
+
+  background: #fafafa;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================
+   ICON
+   ========================= */
+
+.contact-icon {
+  width: 44px;
+  height: 44px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: #f2f2f2;
+  color: #555;
+
+  transition:
+    transform 0.3s ease,
+    background-color 0.3s ease;
+}
+
+.contact-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.contact-card:hover .contact-icon {
+  transform: scale(1.08);
+  background: #e9e9e9;
+}
+
+
+/* =========================
+   HAL ICON
+   ========================= */
+
+.contact-text-icon {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+
+/* =========================
+   ORCID
+   ========================= */
+
+.orcid-icon {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+
+/* =========================
+   LIRIS
+   ========================= */
+
+.contact-icon.liris-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  overflow: hidden;
+}
+
+.contact-icon.liris-icon img {
+  display: block;
+  width: 24px !important;
+  height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  object-fit: contain;
+}
+
+
+/* =========================
+   TEXT
+   ========================= */
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  min-width: 0;
+}
+
+.contact-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+
+  color: #999;
+}
+
+.contact-value {
+  font-size: 1rem;
+
+  color: #444;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  transition: color 0.2s ease;
+}
+
+.contact-card:hover .contact-value {
+  color: #111;
+}
+
+
+/* =========================
+   ARROW
+   ========================= */
+
+.contact-arrow {
+  position: absolute;
+
+  right: 1.3rem;
+  bottom: 1rem;
+
+  font-size: 1.1rem;
+  color: #999;
+
+  opacity: 0;
+
+  transform: translate(-5px, 5px);
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.contact-card:hover .contact-arrow {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width: 700px) {
+  .contact-links {
+    grid-template-columns: 1fr;
+  }
+}
+/* =========================
+   CONTACT ICON COLORS
+   ========================= */
+
+.github-icon {
+  color: #181717;
+}
+
+.email-icon {
+  color: #6b7280;
+}
+
+.hal-icon {
+  color: #e30613;
+}
+
+.orcid-icon {
+  color: #a6ce39;
+}
+
+
+/* =========================
+   ICON HOVER EFFECT
+   ========================= */
+
+.contact-icon {
+  transition:
+    color 0.25s ease,
+    transform 0.25s ease;
+}
+
+.contact-card:hover .contact-icon {
+  transform: scale(1.08);
+}
+
+
+/* GitHub */
+.contact-card:hover .github-icon {
+  color: #000;
+}
+
+
+/* Email */
+.contact-card:hover .email-icon {
+  color: #374151;
+}
+
+
+/* HAL */
+.contact-card:hover .hal-icon {
+  color: #b8000c;
+}
+
+
+/* ORCID */
+.contact-card:hover .orcid-icon {
+  color: #7fae20;
+}
+
+
+/* LIRIS
+   The SVG keeps its own original colors,
+   so only the slight scale animation applies.
+ */
+
+
+/* =========================
+   LIRIS SVG SIZE
+   ========================= */
+
+.contact-icon.liris-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-icon.liris-icon img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+}

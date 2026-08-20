@@ -1,0 +1,1038 @@
+---
+interface ImageData {
+  src: string;
+  alt: string;
+}
+
+interface Props {
+  images: ImageData[];
+  labels?: string[];
+}
+
+const {
+  images,
+  labels = [],
+} = Astro.props;
+
+const validImages = images.slice(0, 4);
+
+function isPdf(src: string) {
+  return src.toLowerCase().endsWith(".pdf");
+}
+---
+
+{validImages.length === 4 && (
+  <div class="comparison4">
+
+    <!-- =========================================
+         IMAGE 1 — HAUT GAUCHE
+         ========================================= -->
+
+    <div class="comparison4-image comparison4-image-1">
+      {isPdf(validImages[0].src) ? (
+        <canvas
+          class="comparison4-media"
+          data-pdf={validImages[0].src}
+          aria-label={validImages[0].alt}
+        ></canvas>
+      ) : (
+        <img
+          class="comparison4-media"
+          src={validImages[0].src}
+          alt={validImages[0].alt}
+          draggable="false"
+        />
+      )}
+    </div>
+
+
+    <!-- =========================================
+         IMAGE 2 — HAUT DROITE
+         ========================================= -->
+
+    <div class="comparison4-image comparison4-image-2">
+      {isPdf(validImages[1].src) ? (
+        <canvas
+          class="comparison4-media"
+          data-pdf={validImages[1].src}
+          aria-label={validImages[1].alt}
+        ></canvas>
+      ) : (
+        <img
+          class="comparison4-media"
+          src={validImages[1].src}
+          alt={validImages[1].alt}
+          draggable="false"
+        />
+      )}
+    </div>
+
+
+    <!-- =========================================
+         IMAGE 3 — BAS GAUCHE
+         ========================================= -->
+
+    <div class="comparison4-image comparison4-image-3">
+      {isPdf(validImages[2].src) ? (
+        <canvas
+          class="comparison4-media"
+          data-pdf={validImages[2].src}
+          aria-label={validImages[2].alt}
+        ></canvas>
+      ) : (
+        <img
+          class="comparison4-media"
+          src={validImages[2].src}
+          alt={validImages[2].alt}
+          draggable="false"
+        />
+      )}
+    </div>
+
+
+    <!-- =========================================
+         IMAGE 4 — BAS DROITE
+         ========================================= -->
+
+    <div class="comparison4-image comparison4-image-4">
+      {isPdf(validImages[3].src) ? (
+        <canvas
+          class="comparison4-media"
+          data-pdf={validImages[3].src}
+          aria-label={validImages[3].alt}
+        ></canvas>
+      ) : (
+        <img
+          class="comparison4-media"
+          src={validImages[3].src}
+          alt={validImages[3].alt}
+          draggable="false"
+        />
+      )}
+    </div>
+
+
+    <!-- =========================================
+         LABELS
+         ========================================= -->
+
+    {labels[0] && (
+      <div class="comparison4-label comparison4-label-1">
+        {labels[0]}
+      </div>
+    )}
+
+    {labels[1] && (
+      <div class="comparison4-label comparison4-label-2">
+        {labels[1]}
+      </div>
+    )}
+
+    {labels[2] && (
+      <div class="comparison4-label comparison4-label-3">
+        {labels[2]}
+      </div>
+    )}
+
+    {labels[3] && (
+      <div class="comparison4-label comparison4-label-4">
+        {labels[3]}
+      </div>
+    )}
+
+
+    <!-- =========================================
+         BARRE VERTICALE
+         ========================================= -->
+
+    <div class="comparison4-vertical"></div>
+
+
+    <!-- =========================================
+         BARRE HORIZONTALE
+         ========================================= -->
+
+    <div class="comparison4-horizontal"></div>
+
+
+    <!-- =========================================
+         POINT CENTRAL DÉPLAÇABLE
+         ========================================= -->
+
+    <button
+      class="comparison4-handle"
+      type="button"
+      aria-label="Déplacer la séparation"
+    >
+      <span class="arrow-left"></span>
+      <span class="arrow-right"></span>
+      <span class="arrow-up"></span>
+      <span class="arrow-down"></span>
+    </button>
+
+  </div>
+)}
+
+
+<script>
+  import * as pdfjsLib from "pdfjs-dist";
+  import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+  /*
+   * =========================================
+   * PDF.JS
+   * =========================================
+   */
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+
+  /*
+   * =========================================
+   * TOUS LES COMPARATEURS
+   * =========================================
+   */
+
+  const comparisons =
+    document.querySelectorAll(".comparison4");
+
+
+  comparisons.forEach((comparison) => {
+
+    /*
+     * =========================================
+     * ELEMENTS
+     * =========================================
+     */
+
+    const vertical =
+      comparison.querySelector(
+        ".comparison4-vertical"
+      ) as HTMLElement;
+
+    const horizontal =
+      comparison.querySelector(
+        ".comparison4-horizontal"
+      ) as HTMLElement;
+
+    const handle =
+      comparison.querySelector(
+        ".comparison4-handle"
+      ) as HTMLElement;
+
+
+    const image1 =
+      comparison.querySelector(
+        ".comparison4-image-1"
+      ) as HTMLElement;
+
+    const image2 =
+      comparison.querySelector(
+        ".comparison4-image-2"
+      ) as HTMLElement;
+
+    const image3 =
+      comparison.querySelector(
+        ".comparison4-image-3"
+      ) as HTMLElement;
+
+    const image4 =
+      comparison.querySelector(
+        ".comparison4-image-4"
+      ) as HTMLElement;
+
+
+    /*
+     * =========================================
+     * POSITION DE LA CROIX
+     * =========================================
+     */
+
+    let x = 50;
+    let y = 50;
+
+
+    /*
+     * =========================================
+     * MISE À JOUR
+     * =========================================
+     */
+
+    function update() {
+
+      /*
+       * Barre verticale
+       */
+
+      vertical.style.left =
+        `${x}%`;
+
+
+      /*
+       * Barre horizontale
+       */
+
+      horizontal.style.top =
+        `${y}%`;
+
+
+      /*
+       * Point central
+       */
+
+      handle.style.left =
+        `${x}%`;
+
+      handle.style.top =
+        `${y}%`;
+
+
+      /*
+       * ======================================
+       * ZONE VISIBLE DES 4 IMAGES
+       * ======================================
+       */
+
+      /*
+       * IMAGE 1 — Haut gauche
+       */
+
+      image1.style.clipPath =
+        `inset(
+          0
+          ${100 - x}%
+          ${100 - y}%
+          0
+        )`;
+
+
+      /*
+       * IMAGE 2 — Haut droite
+       */
+
+      image2.style.clipPath =
+        `inset(
+          0
+          0
+          ${100 - y}%
+          ${x}%
+        )`;
+
+
+      /*
+       * IMAGE 3 — Bas gauche
+       */
+
+      image3.style.clipPath =
+        `inset(
+          ${y}%
+          ${100 - x}%
+          0
+          0
+        )`;
+
+
+      /*
+       * IMAGE 4 — Bas droite
+       */
+
+      image4.style.clipPath =
+        `inset(
+          ${y}%
+          0
+          0
+          ${x}%
+        )`;
+    }
+
+
+    /*
+     * =========================================
+     * CALCUL DE LA POSITION DEPUIS LA SOURIS
+     * =========================================
+     */
+
+    function updateFromPointer(
+      event: PointerEvent
+    ) {
+
+      const rect =
+        comparison.getBoundingClientRect();
+
+
+      let newX =
+        (
+          (event.clientX - rect.left) /
+          rect.width
+        ) * 100;
+
+
+      let newY =
+        (
+          (event.clientY - rect.top) /
+          rect.height
+        ) * 100;
+
+
+      newX =
+        Math.max(
+          0,
+          Math.min(100, newX)
+        );
+
+      newY =
+        Math.max(
+          0,
+          Math.min(100, newY)
+        );
+
+
+      x = newX;
+      y = newY;
+
+
+      update();
+    }
+
+
+    /*
+     * =========================================
+     * DRAG DU POINT CENTRAL
+     * =========================================
+     */
+
+    let dragging = false;
+
+
+    handle.addEventListener(
+      "pointerdown",
+      (event) => {
+
+        event.preventDefault();
+
+        dragging = true;
+
+        handle.setPointerCapture(
+          event.pointerId
+        );
+
+        updateFromPointer(event);
+      }
+    );
+
+
+    handle.addEventListener(
+      "pointermove",
+      (event) => {
+
+        if (!dragging) return;
+
+        updateFromPointer(event);
+      }
+    );
+
+
+    handle.addEventListener(
+      "pointerup",
+      (event) => {
+
+        dragging = false;
+
+        try {
+          handle.releasePointerCapture(
+            event.pointerId
+          );
+        } catch {
+          // Rien à faire
+        }
+      }
+    );
+
+
+    handle.addEventListener(
+      "pointercancel",
+      () => {
+
+        dragging = false;
+      }
+    );
+
+
+    /*
+     * =========================================
+     * CLIC DIRECT SUR L'IMAGE
+     * =========================================
+     */
+
+    comparison.addEventListener(
+      "pointerdown",
+      (event) => {
+
+        if (
+          event.target === handle ||
+          handle.contains(
+            event.target as Node
+          )
+        ) {
+          return;
+        }
+
+        updateFromPointer(event);
+      }
+    );
+
+
+    /*
+     * =========================================
+     * POSITION INITIALE
+     * =========================================
+     */
+
+    update();
+
+
+    /*
+     * =========================================
+     * RENDU DES PDF
+     * =========================================
+     */
+
+    async function renderPdf(
+      canvas: HTMLCanvasElement
+    ) {
+
+      const url =
+        canvas.getAttribute("data-pdf");
+
+
+      if (!url) {
+        return;
+      }
+
+
+      try {
+
+        const pdf =
+          await pdfjsLib
+            .getDocument({
+              url,
+            })
+            .promise;
+
+
+        const page =
+          await pdf.getPage(1);
+
+
+        const baseViewport =
+          page.getViewport({
+            scale: 1,
+          });
+
+
+        const containerWidth =
+          comparison.clientWidth;
+
+
+        const scale =
+          containerWidth /
+          baseViewport.width;
+
+
+        const viewport =
+          page.getViewport({
+            scale,
+          });
+
+
+        const context =
+          canvas.getContext("2d");
+
+
+        if (!context) {
+          return;
+        }
+
+
+        canvas.width =
+          viewport.width;
+
+        canvas.height =
+          viewport.height;
+
+
+        await page.render({
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+
+      } catch (error) {
+
+        console.error(
+          "Erreur lors du chargement du PDF :",
+          error
+        );
+      }
+    }
+
+
+    /*
+     * =========================================
+     * TOUS LES PDF
+     * =========================================
+     */
+
+    const pdfCanvases =
+      comparison.querySelectorAll(
+        "canvas[data-pdf]"
+      );
+
+
+    pdfCanvases.forEach(
+      (canvas) => {
+
+        renderPdf(
+          canvas as HTMLCanvasElement
+        );
+
+      }
+    );
+
+
+    /*
+     * =========================================
+     * REDIMENSIONNEMENT
+     * =========================================
+     */
+
+    let resizeTimeout: number;
+
+
+    window.addEventListener(
+      "resize",
+      () => {
+
+        window.clearTimeout(
+          resizeTimeout
+        );
+
+
+        resizeTimeout =
+          window.setTimeout(
+            () => {
+
+              pdfCanvases.forEach(
+                (canvas) => {
+
+                  renderPdf(
+                    canvas as HTMLCanvasElement
+                  );
+
+                }
+              );
+
+            },
+            150
+          );
+      }
+    );
+
+  });
+</script>
+
+
+<style>
+  /*
+   * =========================================
+   * CONTENEUR
+   * =========================================
+   */
+
+  .comparison4 {
+    position: relative;
+
+    width: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    overflow: hidden;
+
+    margin: 4rem 0;
+
+    border-radius: 12px;
+
+    background: #eee;
+
+    user-select: none;
+
+    touch-action: manipulation;
+  }
+
+
+  /*
+   * =========================================
+   * IMAGES
+   * =========================================
+   */
+
+  .comparison4-image {
+    position: absolute;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    z-index: 1;
+
+    overflow: hidden;
+  }
+
+
+  .comparison4-media {
+    position: absolute;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+
+    display: block;
+
+    pointer-events: none;
+
+    user-select: none;
+  }
+
+
+  /*
+   * =========================================
+   * LABELS
+   *
+   * Les labels sont indépendants des images.
+   * Ils ne sont donc jamais découpés par
+   * les clip-path des quatre images.
+   * =========================================
+   */
+
+  .comparison4-label {
+    position: absolute;
+
+    z-index: 100;
+
+    padding: 0.35rem 0.7rem;
+
+    background: rgba(255, 255, 255, 0.95);
+
+    color: #333;
+
+    border: 1px solid rgba(0, 0, 0, 0.15);
+
+    border-radius: 6px;
+
+    font-size: 0.8rem;
+
+    font-weight: 600;
+
+    line-height: 1.2;
+
+    box-shadow:
+      0 2px 8px
+      rgba(0, 0, 0, 0.15);
+
+    pointer-events: none;
+
+    backdrop-filter: blur(4px);
+
+    white-space: nowrap;
+  }
+
+
+  /*
+   * HAUT GAUCHE
+   */
+
+  .comparison4-label-1 {
+    top: 14px;
+    left: 14px;
+  }
+
+
+  /*
+   * HAUT DROITE
+   */
+
+  .comparison4-label-2 {
+    top: 14px;
+    right: 14px;
+  }
+
+
+  /*
+   * BAS GAUCHE
+   */
+
+  .comparison4-label-3 {
+    bottom: 14px;
+    left: 14px;
+  }
+
+
+  /*
+   * BAS DROITE
+   */
+
+  .comparison4-label-4 {
+    bottom: 14px;
+    right: 14px;
+  }
+
+
+  /*
+   * =========================================
+   * BARRE VERTICALE
+   * =========================================
+   */
+
+  .comparison4-vertical {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    left: 50%;
+
+    width: 2px;
+
+    background: white;
+
+    transform:
+      translateX(-50%);
+
+    z-index: 10;
+
+    pointer-events: none;
+
+    box-shadow:
+      0 0 0 1px
+      rgba(0, 0, 0, 0.15),
+
+      0 0 10px
+      rgba(0, 0, 0, 0.20);
+  }
+
+
+  /*
+   * =========================================
+   * BARRE HORIZONTALE
+   * =========================================
+   */
+
+  .comparison4-horizontal {
+    position: absolute;
+
+    left: 0;
+    right: 0;
+
+    top: 50%;
+
+    height: 2px;
+
+    background: white;
+
+    transform:
+      translateY(-50%);
+
+    z-index: 10;
+
+    pointer-events: none;
+
+    box-shadow:
+      0 0 0 1px
+      rgba(0, 0, 0, 0.15),
+
+      0 0 10px
+      rgba(0, 0, 0, 0.20);
+  }
+
+
+  /*
+   * =========================================
+   * POINT CENTRAL
+   * =========================================
+   */
+
+  .comparison4-handle {
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 46px;
+    height: 46px;
+
+    padding: 0;
+
+    transform:
+      translate(-50%, -50%);
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+
+    align-items: center;
+    justify-items: center;
+
+    background: white;
+
+    color: #333;
+
+    border: 1px solid #ccc;
+
+    border-radius: 50%;
+
+    z-index: 20;
+
+    cursor: move;
+
+    touch-action: none;
+
+    box-shadow:
+      0 3px 12px
+      rgba(0, 0, 0, 0.20);
+
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+
+  .comparison4-handle:hover {
+    transform:
+      translate(-50%, -50%)
+      scale(1.08);
+
+    box-shadow:
+      0 4px 16px
+      rgba(0, 0, 0, 0.28);
+  }
+
+
+  /*
+   * =========================================
+   * FLÈCHES
+   * =========================================
+   */
+
+  .comparison4-handle span {
+    display: block;
+
+    width: 0;
+    height: 0;
+  }
+
+
+  .arrow-left {
+    border-top:
+      5px solid transparent;
+
+    border-bottom:
+      5px solid transparent;
+
+    border-right:
+      7px solid #333;
+  }
+
+
+  .arrow-right {
+    border-top:
+      5px solid transparent;
+
+    border-bottom:
+      5px solid transparent;
+
+    border-left:
+      7px solid #333;
+  }
+
+
+  .arrow-up {
+    border-left:
+      5px solid transparent;
+
+    border-right:
+      5px solid transparent;
+
+    border-bottom:
+      7px solid #333;
+  }
+
+
+  .arrow-down {
+    border-left:
+      5px solid transparent;
+
+    border-right:
+      5px solid transparent;
+
+    border-top:
+      7px solid #333;
+  }
+
+
+  /*
+   * =========================================
+   * MOBILE
+   * =========================================
+   */
+
+  @media (max-width: 700px) {
+
+    .comparison4 {
+      aspect-ratio: 4 / 3;
+
+      margin: 2.5rem 0;
+    }
+
+
+    .comparison4-handle {
+      width: 42px;
+      height: 42px;
+    }
+
+
+    .comparison4-label {
+      padding: 0.25rem 0.5rem;
+
+      font-size: 0.7rem;
+    }
+
+
+    .comparison4-label-1 {
+      top: 8px;
+      left: 8px;
+    }
+
+
+    .comparison4-label-2 {
+      top: 8px;
+      right: 8px;
+    }
+
+
+    .comparison4-label-3 {
+      bottom: 8px;
+      left: 8px;
+    }
+
+
+    .comparison4-label-4 {
+      bottom: 8px;
+      right: 8px;
+    }
+  }
+</style>

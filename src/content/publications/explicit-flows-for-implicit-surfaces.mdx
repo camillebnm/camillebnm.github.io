@@ -1,0 +1,130 @@
+---
+title: "Explicit Flows for Implicit Surfaces"
+authors:
+  - "Camille Buonomo"
+  - "Julie Digne"
+  - "Raphaëlle Chaine"
+year: 2026
+venue: "ACM Transactions on Graphics"
+doi: "10.1145/3811331"
+hal: "hal-05622054"
+image: "/images/publications/explicit-flows/explicit-flows-for-implicit-surfaces.png"
+---
+import PlyVideo from "../../components/PlyVideo.astro";
+
+
+<div style="display: flex; justify-content: center; align-items: center; gap: 3rem; font-size: 2.5rem; margin: 1.5rem 0;">
+  <a
+    href="https://github.com/camillebnm/explicit_flows_for_implicit_surfaces"
+    target="_blank"
+    rel="noopener noreferrer"
+    style="color: #58a6ff; font-weight: 600;"
+  >Code</a>
+
+  <a
+    href="/papers/buonomo26.pdf"
+    style="color: #e07a5f; font-weight: 600;"
+  >Paper</a>
+</div>
+
+
+
+<iframe
+  width="100%"
+  height="500"
+  src="https://www.youtube.com/embed/I1tN22cfa1c"
+  title="Video"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
+
+## Abstract
+
+Shape deformation for morphing or editing purposes is a central challenge in Computer Graphics. While numerous methods exist, few allow for the explicit evaluation of the deformation at arbitrary times and locations without relying on intricate advection or interpolation schemes. We propose a method that provides an explicit expression of the deformation parameterized as a flow for continuously deforming implicitly defined shapes. Our approach leverages invertible neural networks to guarantee that the deformation is a valid flow while providing differential quantities useful for geometric regularization. We demonstrate applications to shape morphing with and without landmarks, shape editing, and pairwise-to-any morphing, where pairwise morphings to a canonical shape can be composed to obtain transformations between arbitrary pairs of shapes.
+
+## Example
+
+<div class="ply-video-row">
+
+  <PlyVideo
+    srcs={[
+      "/mesh/publications/volume-preserving/forw_time_0.ply",
+      "/mesh/publications/volume-preserving/forw_time_1.ply",
+      "/mesh/publications/volume-preserving/forw_time_2.ply",
+      "/mesh/publications/volume-preserving/forw_time_3.ply",
+      "/mesh/publications/volume-preserving/forw_time_4.ply",
+      "/mesh/publications/volume-preserving/forw_time_5.ply",
+      "/mesh/publications/volume-preserving/forw_time_6.ply",
+      "/mesh/publications/volume-preserving/forw_time_7.ply",
+      "/mesh/publications/volume-preserving/forw_time_8.ply",
+      "/mesh/publications/volume-preserving/forw_time_9.ply",
+      "/mesh/publications/volume-preserving/forw_time_10.ply",
+      "/mesh/publications/volume-preserving/forw_time_11.ply",
+      "/mesh/publications/volume-preserving/forw_time_12.ply",
+      "/mesh/publications/volume-preserving/forw_time_13.ply",
+      "/mesh/publications/volume-preserving/forw_time_14.ply",
+      "/mesh/publications/volume-preserving/forw_time_15.ply",
+      "/mesh/publications/volume-preserving/forw_time_16.ply",
+      "/mesh/publications/volume-preserving/forw_time_17.ply",
+      "/mesh/publications/volume-preserving/forw_time_18.ply",
+      "/mesh/publications/volume-preserving/forw_time_19.ply",
+      "/mesh/publications/volume-preserving/forw_time_20.ply",
+      "/mesh/publications/volume-preserving/forw_time_21.ply",
+      "/mesh/publications/volume-preserving/forw_time_22.ply",
+      "/mesh/publications/volume-preserving/forw_time_23.ply"
+    ]}
+    fps={15}
+  />
+
+  <PlyVideo
+    srcs={[
+      "/mesh/publications/volume-preserving/meanw_time_0.ply",
+      "/mesh/publications/volume-preserving/meanw_time_1.ply",
+      "/mesh/publications/volume-preserving/meanw_time_2.ply",
+      "/mesh/publications/volume-preserving/meanw_time_3.ply",
+      "/mesh/publications/volume-preserving/meanw_time_4.ply",
+      "/mesh/publications/volume-preserving/meanw_time_5.ply",
+      "/mesh/publications/volume-preserving/meanw_time_6.ply",
+      "/mesh/publications/volume-preserving/meanw_time_7.ply",
+      "/mesh/publications/volume-preserving/meanw_time_8.ply",
+      "/mesh/publications/volume-preserving/meanw_time_9.ply",
+      "/mesh/publications/volume-preserving/meanw_time_10.ply",
+      "/mesh/publications/volume-preserving/meanw_time_11.ply",
+      "/mesh/publications/volume-preserving/meanw_time_12.ply",
+      "/mesh/publications/volume-preserving/meanw_time_13.ply",
+      "/mesh/publications/volume-preserving/meanw_time_14.ply",
+      "/mesh/publications/volume-preserving/meanw_time_15.ply",
+      "/mesh/publications/volume-preserving/meanw_time_16.ply",
+      "/mesh/publications/volume-preserving/meanw_time_17.ply",
+      "/mesh/publications/volume-preserving/meanw_time_18.ply",
+      "/mesh/publications/volume-preserving/meanw_time_19.ply",
+      "/mesh/publications/volume-preserving/meanw_time_20.ply",
+      "/mesh/publications/volume-preserving/meanw_time_21.ply",
+      "/mesh/publications/volume-preserving/meanw_time_22.ply",
+      "/mesh/publications/volume-preserving/meanw_time_23.ply"
+    ]}
+    fps={15}
+  />
+
+</div>
+
+## BibTeX
+
+```bibtex
+@article{Buonomo2026,
+  author  = {Buonomo, Camille and Digne, Julie and Chaine, Raphaëlle},
+  title   = {Explicit flows for implicit surfaces},
+  journal = {ACM Transactions on Graphics},
+  volume  = {45},
+  number  = {4},
+  pages   = {115:1--115:17},
+  year    = {2026},
+  doi     = {10.1145/3811331}
+}
+``` 
+## Acknoledgements
+This work was partially funded by ANR-23-
+PEIA-0004 (PDE-AI). This project was provided with computing AI
+and storage resources by GENCI at IDRIS thanks to the grant 2025-
+AD010616975 on the supercomputer Jean Zay’s V100 partition. 

@@ -1,0 +1,140 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ImageSlider from "../../components/ImageSlider.astro";
+import ImageComparison from "../../components/ImageComparison.astro";
+import ImageComparison4 from "../../components/ImageComparison4.astro";
+import VideoComparison from "../../components/VideoComparison.astro";
+import PlyViewer from "../../components/PlyViewer.astro";
+import PlyVideo from "../../components/PlyVideo.astro";
+
+export async function getStaticPaths() {
+  const publications = await getCollection("publications");
+
+  return publications.map((publication) => ({
+    params: {
+      slug: publication.id,
+    },
+    props: {
+      publication,
+    },
+  }));
+}
+
+const { publication } = Astro.props;
+const { Content } = await render(publication);
+---
+
+<BaseLayout title={`${publication.data.title} — ${publication.data.year}`}>
+  <article class="publication">
+
+    <header class="publication-header">
+
+      {publication.data.image && (
+        <img
+          class="publication-image"
+          src={publication.data.image}
+          alt={publication.data.title}
+        />
+      )}
+
+      <p class="publication-year">
+        {publication.data.year}
+      </p>
+
+      <h1>
+        {publication.data.title}
+      </h1>
+
+      <p class="publication-authors">
+        {publication.data.authors.join(" · ")}
+      </p>
+
+      <p class="publication-venue">
+        {publication.data.venue}
+      </p>
+
+      <div class="publication-links">
+        {publication.data.doi && (
+          <a
+            href={`https://doi.org/${publication.data.doi}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            DOI ↗
+          </a>
+        )}
+
+        {publication.data.hal && (
+          <a
+            href={`https://hal.science/${publication.data.hal}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            HAL ↗
+          </a>
+        )}
+      </div>
+
+    </header>
+
+    <div class="publication-content">
+
+  <Content />
+
+  {publication.data.gallery && (
+    <ImageSlider
+      images={publication.data.gallery}
+    />
+  )}
+
+  {publication.data.comparison && (
+    <ImageComparison
+      images={publication.data.comparison}
+      labels={publication.data.comparisonLabels}
+    />
+  )}
+
+  {publication.data.comparison4 && (
+    <ImageComparison4
+      images={publication.data.comparison4}
+      labels={publication.data.comparison4Labels}
+    />
+  )}
+
+  {publication.data.videoComparison && (
+  <VideoComparison
+    videos={publication.data.videoComparison.videos}
+    labels={publication.data.videoComparison.labels}
+    fps={publication.data.videoComparison.fps}
+  />
+)}
+
+{publication.data.plyViewer && publication.data.plyViewer.map((model) => (
+  <PlyViewer
+    src={model.src}
+    pointSize={model.pointSize}
+    color={model.color}
+    backgroundColor={model.backgroundColor}
+    autoRotate={model.autoRotate}
+  />
+))}
+
+{publication.data.plyVideo && (
+  <PlyVideo
+    srcs={publication.data.plyVideo.srcs}
+    fps={publication.data.plyVideo.fps}
+    pointSize={publication.data.plyVideo.pointSize}
+    color={publication.data.plyVideo.color}
+    backgroundColor={publication.data.plyVideo.backgroundColor}
+    autoRotate={publication.data.plyVideo.autoRotate}
+    shading={publication.data.plyVideo.shading}
+    flatShading={publication.data.plyVideo.flatShading}
+  />
+)}
+
+</div>
+
+  </article>
+</BaseLayout>
+

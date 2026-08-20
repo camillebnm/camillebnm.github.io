@@ -1,0 +1,60 @@
+---
+title: "Volume Preserving Neural Shape Morphing"
+authors:
+  - "Camille Buonomo"
+  - "Julie Digne"
+  - "Raphaëlle Chaine"
+year: 2025
+venue: "Computer Graphics Forum"
+doi: "10.1111/cgf.70196"
+hal: "hal-05113996"
+image: "/images/publications/volume-preserving/volume-preserving-neural-shape-morphing.png"
+---
+
+<div style="display: flex; justify-content: center; align-items: center; gap: 3rem; font-size: 2.5rem; margin: 1.5rem 0;">
+  <a
+    href="https://github.com/camillebnm/neural_shape_morphing"
+    target="_blank"
+    rel="noopener noreferrer"
+    style="color: #58a6ff; font-weight: 600;"
+  >Code</a>
+
+  <a
+    href="/papers/buonomo25.pdf"
+    style="color: #e07a5f; font-weight: 600;"
+  >Paper</a>
+</div>
+
+
+<iframe
+  width="100%"
+  height="500"
+  src="https://www.youtube.com/embed/PfdEmwzBStw"
+  title="Video"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
+
+## Abstract
+
+Shape interpolation is a long standing challenge of geometry processing. As it is ill-posed, shape interpolation methods always work under some hypothesis such as semantic part matching or least displacement. Among such constraints, volume preservation is one of the traditional animation principles. In this paper we propose a method to interpolate between shapes in arbitrary poses favoring volume and topology preservation. To do so, we rely on a level set representation of the shape and its advection by a velocity field through the level set equation, both shape representation and velocity fields being parameterized as neural networks. While divergence free velocity fields ensure volume and topology preservation, they are incompatible with the Eikonal constraint of signed distance functions. This leads us to introduce the notion of adaptive divergence velocity field, a construction compatible with the Eikonal equation with theoretical guarantee on the shape volume preservation. In the non constant volume setting, our method is still helpful to provide a natural morphing, by combining it with a parameterization of the volume change over time. We show experimentally that our method exhibits better volume preservation than other recent approaches, limits topological changes and preserves the structures of shapes better without landmark correspondences.
+
+
+## BibTeX
+
+```bibtex
+@article{Buonomo2025,
+  author  = {Buonomo, Camille and Digne, Julie and Chaine, Raphaëlle},
+  title   = {Volume Preserving Neural Shape Morphing},
+  journal = {Computer Graphics Forum},
+  volume  = {44},
+  year    = {2025},
+  doi     = {10.1111/cgf.70196}
+}
+```
+## Acknowledgements 
+This work was partially funded by ANR-23-
+PEIA-0004 (PDE-AI). Work under CC-BY 4.0 license https:
+//creativecommons.org/licenses/by/4.0/.
+
