@@ -153,7 +153,29 @@ videoComparison: z
   }),
 });
 
+const presentations = defineCollection({
+  loader: glob({
+    pattern: "**/*.mdx",
+    base: "./src/content/presentations",
+  }),
+
+  schema: z.object({
+    title: z.string(),
+
+    description: z.string().optional(),
+
+    date: z.coerce.date().optional(),
+
+    author: z.string().optional(),
+
+    image: z.string().optional(),
+
+    draft: z.boolean().default(false),
+  }),
+});
+
 
 export const collections = {
   publications,
+  presentations,
 };
