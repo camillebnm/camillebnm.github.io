@@ -33,6 +33,9 @@ const {
   data-flat-shading={flatShading ? "true" : "false"}
   style={`--ply-bg: ${backgroundColor};`}
 >
+  <div class="ply-viewer-canvas-wrapper"></div>
+  <div class="ply-viewer-loading">Chargement…</div>
+</div>
 <script>
   import * as THREE from "three";
   import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
