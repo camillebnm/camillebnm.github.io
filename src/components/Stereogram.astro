@@ -1,0 +1,36 @@
+---
+interface Props {
+  stereoAngle?: number;
+}
+
+const {
+  stereoAngle = 3,
+} = Astro.props;
+---
+
+<div
+  class="stereogram"
+  data-stereo-angle={stereoAngle}
+>
+  <div class="stereogram-content">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .stereogram {
+    position: relative;
+    width: 100%;
+  }
+
+  .stereogram-content {
+    width: 100%;
+  }
+
+  /*
+   * Le composant graphique garde son propre aspect-ratio.
+   */
+  .stereogram :global(.ply-video) {
+    width: 100%;
+  }
+</style>

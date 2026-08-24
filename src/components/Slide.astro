@@ -1,0 +1,356 @@
+---
+---
+
+<div class="slide">
+  <slot />
+</div>
+<style>
+  /* ==================================================
+     MODE NORMAL
+     ================================================== */
+
+  .slide {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+
+    box-sizing: border-box;
+
+    position: relative;
+    overflow: visible;
+
+    display: flex;
+    flex-direction: column;
+
+    justify-content: center;
+    align-items: stretch;
+
+    padding: 4rem 7vw;
+
+    background: white;
+
+    text-align: left;
+  }
+
+  /* Décoration */
+
+  .slide::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 7vw;
+
+    width: 3rem;
+    height: 3px;
+
+    background: currentColor;
+
+    opacity: 0.8;
+  }
+
+
+  /* ==================================================
+     TITRES — MODE NORMAL
+     ================================================== */
+
+  .slide :global(h1),
+  .slide :global(h2) {
+    position: relative;
+
+    width: 100%;
+
+    margin: 0 0 2.5rem;
+
+    text-align: left;
+
+    z-index: 2;
+  }
+
+  .slide :global(h1) {
+    font-size: clamp(1.8rem, 2.4vw, 3rem);
+
+    line-height: 1.1;
+
+    font-weight: 700;
+
+    letter-spacing: -0.025em;
+  }
+
+  .slide :global(h2) {
+    font-size: clamp(1.6rem, 2.1vw, 2.6rem);
+
+    line-height: 1.1;
+
+    font-weight: 650;
+
+    letter-spacing: -0.02em;
+  }
+
+
+  /* ==================================================
+     SOUS-TITRES
+     ================================================== */
+
+  .slide :global(h3) {
+    width: 100%;
+
+    margin: 0 0 1.5rem;
+
+    font-size: clamp(1.3rem, 1.7vw, 2rem);
+
+    line-height: 1.2;
+
+    font-weight: 600;
+  }
+
+
+  /* ==================================================
+     CORPS DE TEXTE
+     ================================================== */
+
+  .slide :global(p) {
+    width: min(72%, 1050px);
+
+    margin: 0 0 1.2rem;
+
+    font-size: clamp(1.05rem, 1.35vw, 1.5rem);
+
+    line-height: 1.55;
+
+    text-align: left;
+
+    flex-shrink: 0;
+  }
+
+
+  /* ==================================================
+     LISTES
+     ================================================== */
+
+  .slide :global(ul),
+  .slide :global(ol) {
+    width: min(72%, 1050px);
+
+    margin: 0 0 1.5rem;
+
+    padding-left: 1.4em;
+
+    font-size: clamp(1.05rem, 1.35vw, 1.5rem);
+
+    line-height: 1.55;
+
+    text-align: left;
+  }
+
+  .slide :global(li) {
+    margin-bottom: 0.5rem;
+  }
+
+
+  /* ==================================================
+     FORMULES — MODE NORMAL
+     ================================================== */
+
+  .slide :global(.katex) {
+    font-size: 1.45em;
+  }
+
+  .slide :global(.katex-display) {
+    margin: 1.8rem 0;
+
+    font-size: 1.6em;
+    width: 100%;
+    white-space: nowrap;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  /* ==================================================
+     IMAGES
+     ================================================== */
+
+  .slide :global(img) {
+    max-width: 100%;
+
+    object-fit: contain;
+  }
+
+
+  /* ==================================================
+     TABLEAUX
+     ================================================== */
+
+  .slide :global(table) {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    font-size: clamp(0.9rem, 1.1vw, 1.25rem);
+  }
+
+  .slide :global(th),
+  .slide :global(td) {
+    padding: 0.6rem 0.9rem;
+
+    text-align: left;
+
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  }
+
+
+  /* ==================================================
+     PETIT TEXTE
+     ================================================== */
+
+  .slide :global(small) {
+    font-size: 0.75em;
+
+    opacity: 0.6;
+  }
+
+
+  /* ==================================================
+     FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide {
+    width: 100vw;
+
+    height: 100vh;
+
+    min-height: 100vh;
+
+    aspect-ratio: auto;
+
+    padding: 14rem 8vw 6vh;
+  }
+
+
+  /* ==================================================
+     TITRES — FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide :global(h1),
+  :global(.presentation-mode) .slide :global(h2) {
+    position: absolute;
+
+    top: 6vh;
+    left: 8vw;
+
+    width: calc(100% - 16vw);
+
+    margin: 0;
+
+    z-index: 2;
+  }
+
+  :global(.presentation-mode) .slide :global(h1) {
+    font-size: clamp(2.5rem, 4vw, 5rem);
+
+    line-height: 1.05;
+
+    font-weight: 700;
+
+    letter-spacing: -0.035em;
+  }
+
+  :global(.presentation-mode) .slide :global(h2) {
+    font-size: clamp(2rem, 3vw, 3.5rem);
+
+    line-height: 1.1;
+
+    font-weight: 650;
+
+    letter-spacing: -0.025em;
+  }
+
+
+  /* ==================================================
+     CORPS DE TEXTE — FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide :global(p) {
+    width: min(72%, 1200px);
+
+    max-width: 72%;
+
+    font-size: clamp(1.3rem, 1.65vw, 1.9rem);
+
+    line-height: 1.6;
+
+    margin-bottom: 1.5rem;
+  }
+
+  :global(.presentation-mode) .slide :global(ul),
+  :global(.presentation-mode) .slide :global(ol) {
+    width: min(72%, 1200px);
+
+    max-width: 72%;
+
+    font-size: clamp(1.3rem, 1.65vw, 1.9rem);
+
+    line-height: 1.6;
+  }
+
+  :global(.presentation-mode) .slide :global(h3) {
+    font-size: clamp(1.6rem, 2vw, 2.4rem);
+  }
+
+
+  /* ==================================================
+     FORMULES — FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide :global(.katex) {
+    font-size: 1.6em;
+  }
+
+  :global(.presentation-mode) .slide :global(.katex-display) {
+    font-size: 1.8em;
+
+    margin: 2.5rem 0;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+
+  /* ==================================================
+     IMAGES — FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide :global(img) {
+    max-width: 100%;
+
+    max-height: 68vh;
+  }
+
+
+  /* ==================================================
+     TABLEAUX — FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide :global(table) {
+    font-size: clamp(1rem, 1.3vw, 1.5rem);
+  }
+
+  :global(.presentation-mode) .slide :global(th),
+  :global(.presentation-mode) .slide :global(td) {
+    padding: 0.8rem 1.1rem;
+  }
+
+
+  /* ==================================================
+     DÉCORATION — FULLSCREEN
+     ================================================== */
+
+  :global(.presentation-mode) .slide::before {
+    left: 8vw;
+
+    width: 4rem;
+
+    height: 4px;
+  }
+</style>

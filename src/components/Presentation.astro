@@ -1,0 +1,237 @@
+---
+---
+<div class="presentation-container">
+
+  <button
+    class="fullscreen-button"
+    type="button"
+    aria-label="Enter fullscreen presentation"
+  >
+    ⛶
+  </button>
+
+  <div class="slides">
+    <slot />
+  </div>
+
+  <div class="slide-counter">
+    <span id="current-slide">1</span>
+    <span>/</span>
+    <span id="total-slides"></span>
+  </div>
+
+</div>
+
+<script>
+  const currentSlideElement =
+    document.querySelector<HTMLElement>("#current-slide");
+
+  const totalSlidesElement =
+    document.querySelector<HTMLElement>("#total-slides");
+
+  const container = document.querySelector<HTMLElement>(
+    ".presentation-container"
+  );
+
+  const slides = Array.from(
+    document.querySelectorAll<HTMLElement>(".slide")
+  );
+
+  const fullscreenButton =
+    document.querySelector<HTMLButtonElement>(".fullscreen-button");
+
+  let current = 0;
+  let presentationMode = false;
+
+  function showSlide(index: number) {
+    if (slides.length === 0) return;
+
+    current = Math.max(0, Math.min(index, slides.length - 1));
+
+    slides.forEach((slide, i) => {
+      if (presentationMode) {
+        slide.style.display = i === current ? "flex" : "none";
+      } else {
+        slide.style.display = "flex";
+      }
+    });
+
+    if (currentSlideElement) {
+      currentSlideElement.textContent = String(current + 1);
+    }
+
+    if (totalSlidesElement) {
+      totalSlidesElement.textContent = String(slides.length);
+    }
+  }
+
+  function nextSlide() {
+    showSlide(current + 1);
+  }
+
+  function previousSlide() {
+    showSlide(current - 1);
+  }
+
+  function getCurrentVisibleSlide() {
+    const viewportTop = window.scrollY;
+
+    let closestSlide = 0;
+    let closestDistance = Infinity;
+
+    slides.forEach((slide, i) => {
+      const distance = Math.abs(slide.offsetTop - viewportTop);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestSlide = i;
+      }
+    });
+
+    return closestSlide;
+  }
+
+  async function enterFullscreen() {
+    if (!container) return;
+
+    current = getCurrentVisibleSlide();
+
+    await container.requestFullscreen();
+  }
+
+  async function exitFullscreen() {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  }
+
+  function handleKey(event: KeyboardEvent) {
+    if (!presentationMode) return;
+
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+        event.preventDefault();
+        nextSlide();
+        break;
+
+      case "ArrowLeft":
+      case "ArrowUp":
+        event.preventDefault();
+        previousSlide();
+        break;
+
+      case "Home":
+        event.preventDefault();
+        showSlide(0);
+        break;
+
+      case "End":
+        event.preventDefault();
+        showSlide(slides.length - 1);
+        break;
+    }
+  }
+
+  fullscreenButton?.addEventListener("click", async () => {
+    if (presentationMode) {
+      await exitFullscreen();
+    } else {
+      await enterFullscreen();
+    }
+  });
+
+  document.addEventListener("fullscreenchange", () => {
+    presentationMode =
+      document.fullscreenElement === container;
+
+    container?.classList.toggle(
+      "presentation-mode",
+      presentationMode
+    );
+
+    showSlide(current);
+  });
+
+  document.addEventListener("keydown", handleKey);
+
+  presentationMode = false;
+  showSlide(0);
+</script>
+
+<style>
+  .presentation-container {
+    position: relative;
+    width: 100%;
+  }
+
+  .slides {
+    width: 100%;
+  }
+
+  .fullscreen-button {
+    position: sticky;
+
+    top: 15rem;
+    left: calc(100% - 3.5rem);
+
+    z-index: 1000;
+
+    width: 2.5rem;
+    height: 2.5rem;
+
+    margin-top: 5rem;
+    margin-bottom: -2.5rem;
+
+    border: none;
+    border-radius: 0.5rem;
+
+    background: rgba(0, 0, 0, 0.08);
+
+    cursor: pointer;
+    font-size: 1.4rem;
+
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+  }
+
+  .fullscreen-button:hover {
+    opacity: 1;
+  }
+
+  .presentation-container.presentation-mode {
+    width: 100vw;
+    height: 100vh;
+    background: white;
+  }
+
+  .presentation-mode .slides {
+    width: 100%;
+    height: 100%;
+  }
+
+  .slide-counter {
+    display: none;
+  }
+
+  .presentation-mode .slide-counter {
+    display: block;
+
+    position: fixed;
+    right: 2rem;
+    bottom: 1.5rem;
+
+    z-index: 1000;
+
+    font-size: 0.9rem;
+    font-weight: 500;
+
+    opacity: 0.5;
+    letter-spacing: 0.05em;
+  }
+
+  .presentation-mode .fullscreen-button {
+    display: none;
+  }
+</style>

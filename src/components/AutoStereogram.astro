@@ -1,0 +1,2011 @@
+---
+interface Props {
+  texture?: string;
+  width?: number;
+  height?: number;
+  patternWidth?: number;
+  depthStrength?: number;
+  invert?: boolean;
+}
+
+const {
+  texture = "/textures/texture.png",
+  width = 640,
+  height = 360,
+  patternWidth = 110,
+  depthStrength = 0.10,
+  invert = false,
+} = Astro.props;
+---
+
+<div
+  class="auto-stereogram"
+  data-texture={texture}
+  data-width={width}
+  data-height={height}
+  data-pattern-width={patternWidth}
+  data-depth-strength={depthStrength}
+  data-invert={invert ? "true" : "false"}
+>
+  <div class="auto-stereogram-source">
+    <slot />
+  </div>
+
+  <canvas class="auto-stereogram-canvas"></canvas>
+
+  <div class="auto-stereogram-loading">
+    Chargement…
+  </div>
+</div>
+
+<script>
+  import * as THREE from "three";
+
+
+  /*
+   * ============================================================
+   * INITIALISATION
+   * ============================================================
+   */
+
+  function initAutoStereograms() {
+
+    const containers =
+      document.querySelectorAll(
+        ".auto-stereogram:not([data-auto-stereogram-initialized])"
+      );
+
+
+    containers.forEach((container) => {
+
+      container.dataset.autoStereogramInitialized =
+        "true";
+
+
+      const source =
+        container.querySelector(
+          ".auto-stereogram-source"
+        );
+
+
+      const canvas =
+        container.querySelector(
+          ".auto-stereogram-canvas"
+        );
+
+
+      const loading =
+        container.querySelector(
+          ".auto-stereogram-loading"
+        );
+
+
+      if (!source || !canvas) {
+        return;
+      }
+
+
+      /*
+       * ========================================================
+       * PROPRIÉTÉS
+       * ========================================================
+       */
+
+      const textureSrc =
+        container.dataset.texture ||
+        "/textures/texture.png";
+
+
+      const outputWidth =
+        Number(
+          container.dataset.width
+        ) || 640;
+
+
+      const outputHeight =
+        Number(
+          container.dataset.height
+        ) || 360;
+
+
+      const patternWidth =
+        Number(
+          container.dataset.patternWidth
+        ) || 110;
+
+
+      const depthStrength =
+        Number(
+          container.dataset.depthStrength
+        ) || 0.10;
+
+
+      const invert =
+        container.dataset.invert === "true";
+
+
+      canvas.width =
+        outputWidth;
+
+      canvas.height =
+        outputHeight;
+
+
+      /*
+       * ========================================================
+       * PLY VIDEO
+       * ========================================================
+       */
+
+      const plyVideo =
+        source.querySelector(
+          ".ply-video"
+        );
+
+
+      if (!plyVideo) {
+
+        console.error(
+          "AUTOSTEREOGRAM: .ply-video introuvable"
+        );
+
+        if (loading) {
+          loading.textContent =
+            "Aucun modèle trouvé";
+        }
+
+        return;
+      }
+
+
+      /*
+       * ========================================================
+       * CANVAS
+       * ========================================================
+       */
+
+      const outputCtx =
+        canvas.getContext("2d");
+
+
+      if (!outputCtx) {
+        return;
+      }
+
+
+      /*
+       * ========================================================
+       * TEXTURE
+       * ========================================================
+       */
+
+      const patternImage =
+        new Image();
+
+
+      patternImage.crossOrigin =
+        "anonymous";
+
+
+      let textureReady =
+        false;
+
+
+      /*
+       * ========================================================
+       * DEPTH MAP RESOLUTION
+       * ========================================================
+       */
+
+      const depthWidth =
+        Math.min(
+          384,
+          outputWidth
+        );
+
+
+      const depthHeight =
+        Math.max(
+          1,
+          Math.round(
+            depthWidth *
+            outputHeight /
+            outputWidth
+          )
+        );
+
+
+      /*
+       * ========================================================
+       * DEPTH RENDERER
+       * ========================================================
+       */
+
+      let depthRenderer;
+
+
+      try {
+
+        depthRenderer =
+          new THREE.WebGLRenderer({
+            antialias: false,
+            alpha: true,
+            preserveDrawingBuffer: true,
+          });
+
+
+        depthRenderer.setPixelRatio(1);
+
+
+        depthRenderer.setSize(
+          depthWidth,
+          depthHeight,
+          false
+        );
+
+      } catch (error) {
+
+        console.error(
+          "AUTOSTEREOGRAM: renderer error",
+          error
+        );
+
+
+        if (loading) {
+          loading.textContent =
+            "Erreur WebGL";
+        }
+
+
+        return;
+      }
+
+
+      /*
+       * ========================================================
+       * DEPTH TARGET
+       * ========================================================
+       */
+
+      const depthTarget =
+        new THREE.WebGLRenderTarget(
+          depthWidth,
+          depthHeight,
+          {
+            minFilter:
+              THREE.NearestFilter,
+
+            magFilter:
+              THREE.NearestFilter,
+
+            format:
+              THREE.RGBAFormat,
+
+            type:
+              THREE.UnsignedByteType,
+
+            depthBuffer:
+              true,
+
+            stencilBuffer:
+              false,
+          }
+        );
+
+
+      /*
+       * ========================================================
+       * MASK TARGET
+       * ========================================================
+       */
+
+      const maskTarget =
+        new THREE.WebGLRenderTarget(
+          depthWidth,
+          depthHeight,
+          {
+            minFilter:
+              THREE.NearestFilter,
+
+            magFilter:
+              THREE.NearestFilter,
+
+            format:
+              THREE.RGBAFormat,
+
+            type:
+              THREE.UnsignedByteType,
+
+            depthBuffer:
+              true,
+
+            stencilBuffer:
+              false,
+          }
+        );
+
+
+      /*
+       * ========================================================
+       * DEPTH MATERIAL
+       * ========================================================
+       */
+
+      const depthMaterial =
+        new THREE.MeshDepthMaterial({
+
+          depthPacking:
+            THREE.RGBA_DepthPacking,
+
+          side:
+            THREE.DoubleSide,
+
+        });
+
+
+      /*
+       * ========================================================
+       * MASK MATERIAL
+       * ========================================================
+       */
+
+      const maskMaterial =
+        new THREE.MeshBasicMaterial({
+
+          color:
+            0xffffff,
+
+          side:
+            THREE.DoubleSide,
+
+        });
+
+
+      /*
+       * ========================================================
+       * API PLY VIDEO
+       * ========================================================
+       */
+
+      let api =
+        null;
+
+
+      let started =
+        false;
+
+
+      function tryStart() {
+
+        if (started) {
+          return;
+        }
+
+
+        api =
+          plyVideo.__plyVideoAPI;
+
+
+        if (!api) {
+          return;
+        }
+
+
+        if (!textureReady) {
+          return;
+        }
+
+
+        started =
+          true;
+
+
+        if (loading) {
+          loading.remove();
+        }
+
+
+        requestUpdate();
+      }
+
+
+      plyVideo.addEventListener(
+        "ply-video-ready",
+        () => {
+
+          api =
+            plyVideo.__plyVideoAPI;
+
+          tryStart();
+        }
+      );
+
+
+      /*
+       * ========================================================
+       * ATTENTE API
+       * ========================================================
+       */
+
+      let attempts =
+        0;
+
+
+      function waitForAPI() {
+
+        if (started) {
+          return;
+        }
+
+
+        tryStart();
+
+
+        if (started) {
+          return;
+        }
+
+
+        attempts++;
+
+
+        if (attempts < 600) {
+
+          requestAnimationFrame(
+            waitForAPI
+          );
+
+        } else {
+
+          console.error(
+            "AUTOSTEREOGRAM: API PlyVideo introuvable"
+          );
+
+
+          if (loading) {
+
+            loading.textContent =
+              "Impossible d'initialiser le modèle";
+          }
+        }
+      }
+
+
+      /*
+       * ========================================================
+       * DEPTH RGBA -> FLOAT
+       * ========================================================
+       */
+
+      function unpackRGBADepth(
+        r,
+        g,
+        b,
+        a
+      ) {
+
+        return (
+          r +
+          g / 255 +
+          b / (255 * 255) +
+          a / (255 * 255 * 255)
+        );
+      }
+
+
+      /*
+       * ========================================================
+       * LINEARISATION DE LA PROFONDEUR
+       * ========================================================
+       */
+
+      function linearizeDepth(
+        depth,
+        near,
+        far
+      ) {
+
+        const zNdc =
+          depth * 2 - 1;
+
+
+        const zView =
+          (
+            2 *
+            near *
+            far
+          ) /
+          (
+            far +
+            near -
+            zNdc *
+            (
+              far -
+              near
+            )
+          );
+
+
+        return zView;
+      }
+
+
+      /*
+       * ========================================================
+       * RENDER DEPTH + MASK
+       * ========================================================
+       *
+       * La profondeur est calculée uniquement sur les pixels
+       * réellement occupés par le mesh.
+       *
+       * Le masque est donc totalement indépendant du depth
+       * buffer.
+       */
+
+      function renderDepth() {
+
+        if (!api) {
+          return null;
+        }
+
+
+        const object =
+          api.getCurrentObject();
+
+
+        if (!object) {
+          return null;
+        }
+
+
+        const camera =
+          api.camera;
+
+
+        if (!camera) {
+          return null;
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * SAUVEGARDE DES MATÉRIAUX
+         * ------------------------------------------------------
+         */
+
+        const oldMaterials = [];
+
+
+        object.traverse((child) => {
+
+          if (!child.isMesh) {
+            return;
+          }
+
+
+          oldMaterials.push({
+            object: child,
+            material: child.material,
+          });
+        });
+
+
+        /*
+         * ======================================================
+         * PASS DEPTH
+         * ======================================================
+         */
+
+        object.traverse((child) => {
+
+          if (!child.isMesh) {
+            return;
+          }
+
+
+          child.material =
+            depthMaterial;
+        });
+
+
+        depthRenderer.setRenderTarget(
+          depthTarget
+        );
+
+
+        depthRenderer.setClearColor(
+          0x000000,
+          0
+        );
+
+
+        depthRenderer.clear(
+          true,
+          true,
+          true
+        );
+
+
+        depthRenderer.render(
+          api.scene,
+          camera
+        );
+
+
+        /*
+         * ======================================================
+         * PASS MASK
+         * ======================================================
+         */
+
+        object.traverse((child) => {
+
+          if (!child.isMesh) {
+            return;
+          }
+
+
+          child.material =
+            maskMaterial;
+        });
+
+
+        depthRenderer.setRenderTarget(
+          maskTarget
+        );
+
+
+        depthRenderer.setClearColor(
+          0x000000,
+          1
+        );
+
+
+        depthRenderer.clear(
+          true,
+          true,
+          true
+        );
+
+
+        depthRenderer.render(
+          api.scene,
+          camera
+        );
+
+
+        depthRenderer.setRenderTarget(
+          null
+        );
+
+
+        /*
+         * ======================================================
+         * RESTAURATION MATÉRIAUX
+         * ======================================================
+         */
+
+        oldMaterials.forEach((item) => {
+
+          item.object.material =
+            item.material;
+        });
+
+
+        /*
+         * ======================================================
+         * LECTURE DEPTH
+         * ======================================================
+         */
+
+        const depthPixels =
+          new Uint8Array(
+            depthWidth *
+            depthHeight *
+            4
+          );
+
+
+        depthRenderer.readRenderTargetPixels(
+          depthTarget,
+          0,
+          0,
+          depthWidth,
+          depthHeight,
+          depthPixels
+        );
+
+
+        /*
+         * ======================================================
+         * LECTURE MASK
+         * ======================================================
+         */
+
+        const maskPixels =
+          new Uint8Array(
+            depthWidth *
+            depthHeight *
+            4
+          );
+
+
+        depthRenderer.readRenderTargetPixels(
+          maskTarget,
+          0,
+          0,
+          depthWidth,
+          depthHeight,
+          maskPixels
+        );
+
+
+        /*
+         * ======================================================
+         * RAW DEPTH + MASK
+         * ======================================================
+         */
+
+        const rawDepth =
+          new Float32Array(
+            depthWidth *
+            depthHeight
+          );
+
+
+        const mask =
+          new Uint8Array(
+            depthWidth *
+            depthHeight
+          );
+
+
+        let minDepth =
+          Infinity;
+
+
+        let maxDepth =
+          -Infinity;
+
+
+        /*
+         * ======================================================
+         * EXTRACTION
+         * ======================================================
+         */
+
+        for (
+          let y = 0;
+          y < depthHeight;
+          y++
+        ) {
+
+          for (
+            let x = 0;
+            x < depthWidth;
+            x++
+          ) {
+
+            const index =
+              y *
+              depthWidth +
+              x;
+
+
+            const p =
+              index * 4;
+
+
+            /*
+             * --------------------------------------------------
+             * MASK
+             * --------------------------------------------------
+             */
+
+            const maskValue =
+              maskPixels[p];
+
+
+            if (
+              maskValue < 128
+            ) {
+
+              mask[index] =
+                0;
+
+              continue;
+            }
+
+
+            mask[index] =
+              1;
+
+
+            /*
+             * --------------------------------------------------
+             * DEPTH PACKÉE
+             * --------------------------------------------------
+             */
+
+            const r =
+              depthPixels[p] / 255;
+
+
+            const g =
+              depthPixels[p + 1] / 255;
+
+
+            const b =
+              depthPixels[p + 2] / 255;
+
+
+            const a =
+              depthPixels[p + 3] / 255;
+
+
+            const packed =
+              unpackRGBADepth(
+                r,
+                g,
+                b,
+                a
+              );
+
+
+            /*
+             * --------------------------------------------------
+             * PROFONDEUR LINÉARISÉE
+             * --------------------------------------------------
+             */
+
+            const linear =
+              linearizeDepth(
+                packed,
+                camera.near,
+                camera.far
+              );
+
+
+            rawDepth[index] =
+              linear;
+
+
+            minDepth =
+              Math.min(
+                minDepth,
+                linear
+              );
+
+
+            maxDepth =
+              Math.max(
+                maxDepth,
+                linear
+              );
+          }
+        }
+
+
+        /*
+         * ======================================================
+         * PAS DE MESH
+         * ======================================================
+         */
+
+        if (
+          minDepth === Infinity
+        ) {
+
+          return null;
+        }
+
+
+        /*
+         * ======================================================
+         * NORMALISATION DE LA PROFONDEUR
+         * ======================================================
+         *
+         * IMPORTANT :
+         *
+         * on normalise uniquement les valeurs du mesh.
+         *
+         * Le background reste exactement à 0.
+         *
+         * proche -> 1
+         * loin   -> 0
+         */
+
+        const depth =
+          new Float32Array(
+            depthWidth *
+            depthHeight
+          );
+
+
+        const range =
+          maxDepth -
+          minDepth;
+
+
+        for (
+          let i = 0;
+          i < depth.length;
+          i++
+        ) {
+
+          /*
+           * Background.
+           */
+
+          if (
+            mask[i] === 0
+          ) {
+
+            depth[i] =
+              0;
+
+            continue;
+          }
+
+
+          /*
+           * Toutes les profondeurs sont quasiment
+           * identiques.
+           */
+
+          if (
+            range < 1e-7
+          ) {
+
+            depth[i] =
+              0.5;
+
+            continue;
+          }
+
+
+          /*
+           * proche = 1
+           * loin   = 0
+           */
+
+          let value =
+            (
+              maxDepth -
+              rawDepth[i]
+            ) /
+            range;
+
+
+          value =
+            THREE.MathUtils.clamp(
+              value,
+              0,
+              1
+            );
+
+
+          /*
+           * On évite les valeurs extrêmes.
+           *
+           * Cela évite qu'une petite zone très proche
+           * écrase toute la profondeur du modèle.
+           */
+
+          value =
+            0.05 +
+            value *
+            0.90;
+
+
+          depth[i] =
+            value;
+        }
+
+
+        /*
+         * ======================================================
+         * LISSAGE SPATIAL
+         * ======================================================
+         *
+         * Le lissage se fait uniquement à l'intérieur du mesh.
+         *
+         * Cela évite d'aplatir artificiellement les silhouettes.
+         */
+
+        const smooth =
+          new Float32Array(
+            depth.length
+          );
+
+
+        for (
+          let y = 0;
+          y < depthHeight;
+          y++
+        ) {
+
+          for (
+            let x = 0;
+            x < depthWidth;
+            x++
+          ) {
+
+            const index =
+              y *
+              depthWidth +
+              x;
+
+
+            if (
+              mask[index] === 0
+            ) {
+
+              smooth[index] =
+                0;
+
+              continue;
+            }
+
+
+            let total =
+              0;
+
+
+            let count =
+              0;
+
+
+            for (
+              let oy = -1;
+              oy <= 1;
+              oy++
+            ) {
+
+              for (
+                let ox = -1;
+                ox <= 1;
+                ox++
+              ) {
+
+                const nx =
+                  x + ox;
+
+
+                const ny =
+                  y + oy;
+
+
+                if (
+                  nx < 0 ||
+                  nx >= depthWidth ||
+                  ny < 0 ||
+                  ny >= depthHeight
+                ) {
+
+                  continue;
+                }
+
+
+                const neighbor =
+                  ny *
+                  depthWidth +
+                  nx;
+
+
+                /*
+                 * Ne jamais mélanger le fond
+                 * avec le mesh.
+                 */
+
+                if (
+                  mask[neighbor] === 0
+                ) {
+
+                  continue;
+                }
+
+
+                total +=
+                  depth[neighbor];
+
+
+                count++;
+              }
+            }
+
+
+            smooth[index] =
+              count > 0
+                ? total / count
+                : depth[index];
+          }
+        }
+
+
+        return smooth;
+      }
+
+
+      /*
+       * ========================================================
+       * PATTERN
+       * ========================================================
+       */
+
+      function createPatternData() {
+
+        const patternCanvas =
+          document.createElement(
+            "canvas"
+          );
+
+
+        patternCanvas.width =
+          patternWidth;
+
+
+        patternCanvas.height =
+          outputHeight;
+
+
+        const ctx =
+          patternCanvas.getContext(
+            "2d"
+          );
+
+
+        if (!ctx) {
+          return null;
+        }
+
+
+        const imageWidth =
+          patternImage.naturalWidth;
+
+
+        const imageHeight =
+          patternImage.naturalHeight;
+
+
+        if (
+          !imageWidth ||
+          !imageHeight
+        ) {
+
+          return null;
+        }
+
+
+        for (
+          let y = 0;
+          y < outputHeight;
+          y += imageHeight
+        ) {
+
+          for (
+            let x = 0;
+            x < patternWidth;
+            x += imageWidth
+          ) {
+
+            ctx.drawImage(
+              patternImage,
+              x,
+              y
+            );
+          }
+        }
+
+
+        return ctx.getImageData(
+          0,
+          0,
+          patternWidth,
+          outputHeight
+        );
+      }
+
+
+      /*
+       * ========================================================
+       * INTERPOLATION DEPTH
+       * ========================================================
+       */
+
+      function sampleDepth(
+        depth,
+        x,
+        y
+      ) {
+
+        const fx =
+          THREE.MathUtils.clamp(
+            x *
+            (
+              depthWidth - 1
+            ) /
+            Math.max(
+              1,
+              outputWidth - 1
+            ),
+            0,
+            depthWidth - 1
+          );
+
+
+        const fy =
+          THREE.MathUtils.clamp(
+            y *
+            (
+              depthHeight - 1
+            ) /
+            Math.max(
+              1,
+              outputHeight - 1
+            ),
+            0,
+            depthHeight - 1
+          );
+
+
+        const x0 =
+          Math.floor(fx);
+
+
+        const y0 =
+          Math.floor(fy);
+
+
+        const x1 =
+          Math.min(
+            depthWidth - 1,
+            x0 + 1
+          );
+
+
+        const y1 =
+          Math.min(
+            depthHeight - 1,
+            y0 + 1
+          );
+
+
+        const tx =
+          fx - x0;
+
+
+        const ty =
+          fy - y0;
+
+
+        const d00 =
+          depth[
+            y0 *
+            depthWidth +
+            x0
+          ];
+
+
+        const d10 =
+          depth[
+            y0 *
+            depthWidth +
+            x1
+          ];
+
+
+        const d01 =
+          depth[
+            y1 *
+            depthWidth +
+            x0
+          ];
+
+
+        const d11 =
+          depth[
+            y1 *
+            depthWidth +
+            x1
+          ];
+
+
+        const top =
+          d00 +
+          (
+            d10 -
+            d00
+          ) *
+          tx;
+
+
+        const bottom =
+          d01 +
+          (
+            d11 -
+            d01
+          ) *
+          tx;
+
+
+        return (
+          top +
+          (
+            bottom -
+            top
+          ) *
+          ty
+        );
+      }
+
+
+      /*
+       * ========================================================
+       * AUTOSTEREOGRAMME
+       * ========================================================
+       *
+       * Génération par contraintes horizontales.
+       *
+       * La depth contrôle la distance entre les deux pixels
+       * qui doivent être identiques.
+       */
+
+      function generateAutostereogram(
+        depth
+      ) {
+
+        const patternData =
+          createPatternData();
+
+
+        if (!patternData) {
+          return;
+        }
+
+
+        const output =
+          outputCtx.createImageData(
+            outputWidth,
+            outputHeight
+          );
+
+
+        /*
+         * ------------------------------------------------------
+         * INITIALISATION PAR MOTIF RÉPÉTÉ
+         * ------------------------------------------------------
+         */
+
+        for (
+          let y = 0;
+          y < outputHeight;
+          y++
+        ) {
+
+          for (
+            let x = 0;
+            x < outputWidth;
+            x++
+          ) {
+
+            const dst =
+              (
+                y *
+                outputWidth +
+                x
+              ) * 4;
+
+
+            const px =
+              (
+                y *
+                patternWidth +
+                (
+                  x %
+                  patternWidth
+                )
+              ) * 4;
+
+
+            output.data[dst] =
+              patternData.data[px];
+
+
+            output.data[dst + 1] =
+              patternData.data[px + 1];
+
+
+            output.data[dst + 2] =
+              patternData.data[px + 2];
+
+
+            output.data[dst + 3] =
+              255;
+          }
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * UNION-FIND
+         * ------------------------------------------------------
+         */
+
+        const parent =
+          new Int32Array(
+            outputWidth *
+            outputHeight
+          );
+
+
+        for (
+          let i = 0;
+          i < parent.length;
+          i++
+        ) {
+
+          parent[i] =
+            i;
+        }
+
+
+        function find(a) {
+
+          let root =
+            a;
+
+
+          while (
+            parent[root] !== root
+          ) {
+
+            root =
+              parent[root];
+          }
+
+
+          while (
+            parent[a] !== a
+          ) {
+
+            const next =
+              parent[a];
+
+
+            parent[a] =
+              root;
+
+
+            a =
+              next;
+          }
+
+
+          return root;
+        }
+
+
+        function unite(
+          a,
+          b
+        ) {
+
+          const ra =
+            find(a);
+
+
+          const rb =
+            find(b);
+
+
+          if (
+            ra !== rb
+          ) {
+
+            parent[rb] =
+              ra;
+          }
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * PARALLAXE
+         * ------------------------------------------------------
+         */
+
+        const maxParallax =
+          Math.max(
+            1,
+            Math.round(
+              patternWidth *
+              depthStrength
+            )
+          );
+
+
+        /*
+         * ------------------------------------------------------
+         * CONTRAINTES
+         * ------------------------------------------------------
+         */
+
+        for (
+          let y = 0;
+          y < outputHeight;
+          y++
+        ) {
+
+          for (
+            let x = 0;
+            x < outputWidth;
+            x++
+          ) {
+
+            let d =
+              sampleDepth(
+                depth,
+                x,
+                y
+              );
+
+
+            if (invert) {
+
+              d =
+                1 -
+                d;
+            }
+
+
+            /*
+             * Pas de contrainte dans le background.
+             */
+
+            if (
+              d <= 0.001
+            ) {
+
+              continue;
+            }
+
+
+            /*
+             * Mesh proche :
+             *
+             * séparation plus petite.
+             *
+             * Mesh loin :
+             *
+             * séparation proche du patternWidth.
+             */
+
+            const separation =
+              Math.round(
+                patternWidth -
+                d *
+                maxParallax
+              );
+
+
+            if (
+              separation < 4
+            ) {
+
+              continue;
+            }
+
+
+            const left =
+              x;
+
+
+            const right =
+              x +
+              separation;
+
+
+            if (
+              left < 0 ||
+              right >= outputWidth
+            ) {
+
+              continue;
+            }
+
+
+            unite(
+              y *
+              outputWidth +
+              left,
+
+              y *
+              outputWidth +
+              right
+            );
+          }
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * APPLICATION DES GROUPES
+         * ------------------------------------------------------
+         */
+
+        for (
+          let y = 0;
+          y < outputHeight;
+          y++
+        ) {
+
+          for (
+            let x = 0;
+            x < outputWidth;
+            x++
+          ) {
+
+            const index =
+              y *
+              outputWidth +
+              x;
+
+
+            const root =
+              find(index);
+
+
+            const sourceX =
+              (
+                root %
+                patternWidth +
+                patternWidth
+              ) %
+              patternWidth;
+
+
+            const src =
+              (
+                y *
+                patternWidth +
+                sourceX
+              ) * 4;
+
+
+            const dst =
+              index * 4;
+
+
+            output.data[dst] =
+              patternData.data[src];
+
+
+            output.data[dst + 1] =
+              patternData.data[src + 1];
+
+
+            output.data[dst + 2] =
+              patternData.data[src + 2];
+
+
+            output.data[dst + 3] =
+              255;
+          }
+        }
+
+
+        /*
+         * ------------------------------------------------------
+         * AFFICHAGE
+         * ------------------------------------------------------
+         */
+
+        outputCtx.putImageData(
+          output,
+          0,
+          0
+        );
+      }
+
+
+      /*
+       * ========================================================
+       * UPDATE
+       * ========================================================
+       */
+
+      let updatePending =
+        false;
+
+
+      let updateRunning =
+        false;
+
+
+      function requestUpdate() {
+
+        updatePending =
+          true;
+
+
+        if (updateRunning) {
+          return;
+        }
+
+
+        updateRunning =
+          true;
+
+
+        requestAnimationFrame(
+          update
+        );
+      }
+
+
+      function update() {
+
+        if (!api) {
+
+          updateRunning =
+            false;
+
+          return;
+        }
+
+
+        updatePending =
+          false;
+
+
+        /*
+         * On utilise exactement la caméra de PlyVideo.
+         *
+         * Aucun contrôle supplémentaire n'est créé ici.
+         */
+
+        const depth =
+          renderDepth();
+
+
+        if (depth) {
+
+          generateAutostereogram(
+            depth
+          );
+        }
+
+
+        updateRunning =
+          false;
+
+
+        if (updatePending) {
+
+          requestAnimationFrame(
+            update
+          );
+        }
+      }
+
+
+      /*
+       * ========================================================
+       * INTERACTION
+       * ========================================================
+       */
+
+      plyVideo.addEventListener(
+        "pointerdown",
+        requestUpdate
+      );
+
+
+      plyVideo.addEventListener(
+        "pointermove",
+        requestUpdate
+      );
+
+
+      plyVideo.addEventListener(
+        "pointerup",
+        requestUpdate
+      );
+
+
+      plyVideo.addEventListener(
+        "wheel",
+        requestUpdate
+      );
+
+
+      plyVideo.addEventListener(
+        "ply-video-frame",
+        requestUpdate
+      );
+
+
+      /*
+       * ========================================================
+       * TEXTURE
+       * ========================================================
+       */
+
+      patternImage.onload =
+        () => {
+
+          textureReady =
+            true;
+
+
+          tryStart();
+        };
+
+
+      patternImage.onerror =
+        () => {
+
+          console.error(
+            "AUTOSTEREOGRAM: texture impossible à charger",
+            textureSrc
+          );
+
+
+          if (loading) {
+
+            loading.textContent =
+              "Impossible de charger la texture";
+          }
+        };
+
+
+      patternImage.src =
+        textureSrc;
+
+
+      /*
+       * ========================================================
+       * START
+       * ========================================================
+       */
+
+      waitForAPI();
+
+
+      /*
+       * ========================================================
+       * CLEANUP
+       * ========================================================
+       */
+
+      const cleanupObserver =
+        new MutationObserver(
+          () => {
+
+            if (
+              !document.body.contains(
+                container
+              )
+            ) {
+
+              depthRenderer.dispose();
+
+              depthTarget.dispose();
+
+              maskTarget.dispose();
+
+              depthMaterial.dispose();
+
+              maskMaterial.dispose();
+
+              cleanupObserver.disconnect();
+            }
+          }
+        );
+
+
+      cleanupObserver.observe(
+        document.body,
+        {
+          childList: true,
+          subtree: true,
+        }
+      );
+
+    });
+  }
+
+
+  initAutoStereograms();
+
+
+  document.addEventListener(
+    "astro:page-load",
+    initAutoStereograms
+  );
+</script>
+
+<style>
+
+  .auto-stereogram {
+
+    position: relative;
+
+    width: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    overflow: hidden;
+
+    border-radius: 12px;
+
+    background: #000;
+  }
+
+
+  .auto-stereogram-source {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 1;
+
+    opacity: 0;
+
+    pointer-events: auto;
+  }
+
+
+  .auto-stereogram-source .ply-video {
+
+    width: 100%;
+
+    height: 100%;
+  }
+
+
+  .auto-stereogram-canvas {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 2;
+
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
+
+    pointer-events: none;
+  }
+
+
+  .auto-stereogram-loading {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 3;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: white;
+
+    font-size: 0.85rem;
+
+    background:
+      rgb(0 0 0 / 30%);
+
+    pointer-events: none;
+  }
+
+</style>

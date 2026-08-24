@@ -8,6 +8,7 @@ interface Props {
   autoRotate?: boolean;
   shading?: "matcap" | "standard";
   flatShading?: boolean;
+  initialZoom?: number;
 }
 
 const {
@@ -19,6 +20,7 @@ const {
   autoRotate = false,
   shading = "matcap",
   flatShading = false,
+  initialZoom = 1.15,
 } = Astro.props;
 ---
 
@@ -32,6 +34,7 @@ const {
   data-shading={shading}
   data-flat-shading={flatShading ? "true" : "false"}
   style={`--ply-video-bg: ${backgroundColor};`}
+  data-initial-zoom={initialZoom}
 >
   <div class="ply-video-canvas-wrapper"></div>
 
@@ -40,7 +43,6 @@ const {
   </div>
 </div>
 
-
 <script>
   import * as THREE from "three";
   import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
@@ -48,9 +50,9 @@ const {
 
 
   /*
-   * =========================================
+   * ============================================================
    * INITIALISATION
-   * =========================================
+   * ============================================================
    */
 
   function initPlyVideos() {
@@ -59,12 +61,6 @@ const {
       document.querySelectorAll(
         ".ply-video:not([data-ply-video-initialized])"
       );
-
-
-    console.log(
-      "PLY VIDEO: FOUND",
-      videos.length
-    );
 
 
     videos.forEach((video) => {
@@ -86,19 +82,14 @@ const {
 
 
       if (!wrapper) {
-
-        console.error(
-          "PLY VIDEO: MISSING WRAPPER"
-        );
-
         return;
       }
 
 
       /*
-       * =========================================
+       * ========================================================
        * PROPRIÉTÉS
-       * =========================================
+       * ========================================================
        */
 
       let srcs;
@@ -134,41 +125,57 @@ const {
 
 
       const fps =
-        Number(
-          video.dataset.fps
-        ) || 10;
+        Number(video.dataset.fps) || 10;
 
 
       const pointSize =
-        Number(
-          video.dataset.pointSize
-        ) || 0.01;
+        Number(video.dataset.pointSize) || 0.01;
 
 
       const baseColor =
-        video.dataset.color ||
-        "#d0d0d0";
+        video.dataset.color || "#d0d0d0";
 
 
       const autoRotate =
-        video.dataset.autoRotate ===
-        "true";
+        video.dataset.autoRotate === "true";
 
 
       const shading =
-        video.dataset.shading ||
-        "matcap";
+        video.dataset.shading || "matcap";
 
 
       const flatShading =
-        video.dataset.flatShading ===
-        "true";
+        video.dataset.flatShading === "true";
+        const initialZoom =
+  Number(video.dataset.initialZoom) || 1.15;
 
 
       /*
-       * =========================================
-       * SCÈNE
-       * =========================================
+       * ========================================================
+       * STEREOGRAM
+       * ========================================================
+       */
+
+      const stereogram =
+        video.closest(".stereogram");
+
+
+      const isStereo =
+        !!stereogram;
+
+
+      const stereoAngle =
+        THREE.MathUtils.degToRad(
+          Number(
+            stereogram?.dataset.stereoAngle
+          ) || 3
+        );
+
+
+      /*
+       * ========================================================
+       * SCENE
+       * ========================================================
        */
 
       const scene =
@@ -176,9 +183,9 @@ const {
 
 
       /*
-       * =========================================
-       * CAMÉRA
-       * =========================================
+       * ========================================================
+       * CAMERA
+       * ========================================================
        */
 
       const camera =
@@ -198,18 +205,22 @@ const {
 
 
       /*
-       * =========================================
+       * ========================================================
        * RENDERER
-       * =========================================
+       * ========================================================
        */
 
       const renderer =
-  new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-  });
+        new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true,
+        });
 
-      renderer.setClearColor(0x000000, 0);
+
+      renderer.setClearColor(
+        0x000000,
+        0
+      );
 
 
       renderer.setPixelRatio(
@@ -220,15 +231,27 @@ const {
       );
 
 
+      renderer.domElement.style.width =
+        "100%";
+
+
+      renderer.domElement.style.height =
+        "100%";
+
+
+      renderer.domElement.style.display =
+        "block";
+
+
       wrapper.appendChild(
         renderer.domElement
       );
 
 
       /*
-       * =========================================
-       * CONTROLES
-       * =========================================
+       * ========================================================
+       * CONTROLS
+       * ========================================================
        */
 
       const controls =
@@ -263,9 +286,9 @@ const {
 
 
       /*
-       * =========================================
-       * ÉCLAIRAGE
-       * =========================================
+       * ========================================================
+       * LUMIÈRES
+       * ========================================================
        */
 
       scene.add(
@@ -291,9 +314,7 @@ const {
       );
 
 
-      scene.add(
-        keyLight
-      );
+      scene.add(keyLight);
 
 
       const fillLight =
@@ -310,9 +331,7 @@ const {
       );
 
 
-      scene.add(
-        fillLight
-      );
+      scene.add(fillLight);
 
 
       const rimLight =
@@ -329,52 +348,37 @@ const {
       );
 
 
-      scene.add(
-        rimLight
-      );
+      scene.add(rimLight);
 
 
       /*
-       * =========================================
+       * ========================================================
        * MATCAP
-       * =========================================
+       * ========================================================
        */
 
       function createClayMatcap() {
 
         const size = 256;
 
-
         const canvas =
-          document.createElement(
-            "canvas"
-          );
+          document.createElement("canvas");
 
-
-        canvas.width =
-          size;
-
-        canvas.height =
-          size;
-
+        canvas.width = size;
+        canvas.height = size;
 
         const ctx =
-          canvas.getContext(
-            "2d"
-          );
-
+          canvas.getContext("2d");
 
         if (!ctx) {
           return null;
         }
-
 
         const gradient =
           ctx.createRadialGradient(
             size * 0.35,
             size * 0.35,
             size * 0.05,
-
             size * 0.5,
             size * 0.5,
             size * 0.7
@@ -386,24 +390,20 @@ const {
           "#ffffff"
         );
 
-
         gradient.addColorStop(
           0.35,
           "#eeeeee"
         );
-
 
         gradient.addColorStop(
           0.65,
           "#d0d0d0"
         );
 
-
         gradient.addColorStop(
           0.85,
           "#aaaaaa"
         );
-
 
         gradient.addColorStop(
           1,
@@ -413,7 +413,6 @@ const {
 
         ctx.fillStyle =
           gradient;
-
 
         ctx.fillRect(
           0,
@@ -442,22 +441,18 @@ const {
 
 
       /*
-       * =========================================
+       * ========================================================
        * FRAMES
-       * =========================================
-       *
-       * Chaque PLY devient un objet Three.js.
-       *
-       * Un seul est visible à la fois.
+       * ========================================================
        */
 
       const frames = [];
 
 
       /*
-       * =========================================
-       * CRÉATION DU MATÉRIAU
-       * =========================================
+       * ========================================================
+       * MATÉRIAU
+       * ========================================================
        */
 
       function createMaterial(
@@ -476,6 +471,7 @@ const {
         ) {
 
           return new THREE.MeshMatcapMaterial({
+
             color:
               hasColors
                 ? 0xffffff
@@ -490,12 +486,13 @@ const {
             flatShading,
 
             side:
-              THREE.DoubleSide
+              THREE.DoubleSide,
           });
         }
 
 
         return new THREE.MeshStandardMaterial({
+
           color:
             hasColors
               ? 0xffffff
@@ -507,15 +504,15 @@ const {
           flatShading,
 
           side:
-            THREE.DoubleSide
+            THREE.DoubleSide,
         });
       }
 
 
       /*
-       * =========================================
-       * CRÉATION D'UNE FRAME
-       * =========================================
+       * ========================================================
+       * OBJET
+       * ========================================================
        */
 
       function createObject(
@@ -553,6 +550,7 @@ const {
 
         const material =
           new THREE.PointsMaterial({
+
             size:
               pointSize,
 
@@ -565,7 +563,7 @@ const {
               hasColors,
 
             sizeAttenuation:
-              true
+              true,
           });
 
 
@@ -577,18 +575,16 @@ const {
 
 
       /*
-       * =========================================
-       * CHARGEMENT DES PLY
-       * =========================================
+       * ========================================================
+       * CHARGEMENT
+       * ========================================================
        */
 
       const loader =
         new PLYLoader();
 
 
-      function loadFrame(
-        src
-      ) {
+      function loadFrame(src) {
 
         return new Promise(
           function (
@@ -597,6 +593,7 @@ const {
           ) {
 
             loader.load(
+
               src,
 
               function (
@@ -608,11 +605,6 @@ const {
                     geometry
                   );
 
-
-                /*
-                 * Toutes les frames sont
-                 * centrées indépendamment.
-                 */
 
                 const box =
                   new THREE.Box3()
@@ -641,9 +633,7 @@ const {
                 );
 
 
-                resolve(
-                  object
-                );
+                resolve(object);
               },
 
               undefined,
@@ -659,9 +649,7 @@ const {
                 );
 
 
-                reject(
-                  error
-                );
+                reject(error);
               }
             );
           }
@@ -670,13 +658,9 @@ const {
 
 
       /*
-       * =========================================
-       * CADRAGE GLOBAL
-       * =========================================
-       *
-       * On calcule une taille commune pour toutes
-       * les frames afin que la caméra ne change
-       * jamais pendant l'animation.
+       * ========================================================
+       * CADRAGE
+       * ========================================================
        */
 
       function fitCamera() {
@@ -721,16 +705,61 @@ const {
           sphere.radius || 1;
 
 
+        let aspect;
+
+
+        if (isStereo) {
+
+          const width =
+            wrapper.clientWidth;
+
+          const height =
+            wrapper.clientHeight;
+
+          aspect =
+            (width / 2) / height;
+
+        } else {
+
+          aspect =
+            wrapper.clientWidth /
+            wrapper.clientHeight;
+        }
+
+
+        const verticalFov =
+          THREE.MathUtils.degToRad(
+            camera.fov
+          );
+
+
+        const horizontalFov =
+          2 *
+          Math.atan(
+            Math.tan(verticalFov / 2) *
+            aspect
+          );
+
+
+        const verticalDistance =
+          radius /
+          Math.sin(
+            verticalFov / 2
+          );
+
+
+        const horizontalDistance =
+          radius /
+          Math.sin(
+            horizontalFov / 2
+          );
+
+
         const distance =
-          (
-            radius /
-            Math.sin(
-              (
-                camera.fov *
-                Math.PI
-              ) / 360
-            )
-          ) * 0.75;
+  Math.max(
+    verticalDistance,
+    horizontalDistance
+  ) * initialZoom;
 
 
         camera.position.set(
@@ -763,14 +792,12 @@ const {
 
 
       /*
-       * =========================================
-       * AFFICHAGE D'UNE FRAME
-       * =========================================
+       * ========================================================
+       * AFFICHAGE
+       * ========================================================
        */
 
-      function showFrame(
-        index
-      ) {
+      function showFrame(index) {
 
         frames.forEach(
           function (
@@ -786,9 +813,9 @@ const {
 
 
       /*
-       * =========================================
-       * CHARGEMENT DE TOUTES LES FRAMES
-       * =========================================
+       * ========================================================
+       * CHARGEMENT
+       * ========================================================
        */
 
       async function loadAllFrames() {
@@ -825,16 +852,7 @@ const {
           }
 
 
-          /*
-           * Première frame visible
-           */
-
           showFrame(0);
-
-
-          /*
-           * Cadrage commun
-           */
 
           fitCamera();
 
@@ -842,6 +860,57 @@ const {
           if (loadingEl) {
             loadingEl.remove();
           }
+
+
+          /*
+           * ======================================================
+           * API POUR LES AUTOSTÉRÉOGRAMMES
+           * ======================================================
+           */
+
+          video.__plyVideoAPI = {
+
+            scene,
+
+            camera,
+
+            controls,
+
+            renderer,
+
+            frames,
+
+            getCurrentObject() {
+
+              if (
+                frameIndex < 0 ||
+                frameIndex >= frames.length
+              ) {
+                return null;
+              }
+
+              return frames[
+                frameIndex
+              ];
+            },
+
+            getCurrentFrame() {
+
+              return frameIndex;
+            },
+
+            getIsStereo() {
+
+              return isStereo;
+            },
+          };
+
+
+          video.dispatchEvent(
+            new CustomEvent(
+              "ply-video-ready"
+            )
+          );
 
 
           startAnimation();
@@ -865,13 +934,9 @@ const {
 
 
       /*
-       * =========================================
-       * ANIMATION BOOMERANG
-       * =========================================
-       *
-       * Exemple avec 4 frames :
-       *
-       * 0 → 1 → 2 → 3 → 2 → 1 → 0 → 1...
+       * ========================================================
+       * ANIMATION
+       * ========================================================
        */
 
       let frameIndex = 0;
@@ -900,27 +965,13 @@ const {
           frameDuration
         ) {
 
-          /*
-           * On conserve le temps restant
-           * plutôt que de repartir exactement
-           * de currentTime.
-           */
-
           lastFrameTime +=
             frameDuration;
 
 
-          /*
-           * Avance / recule
-           */
-
           frameIndex +=
             direction;
 
-
-          /*
-           * Arrivée à la dernière frame
-           */
 
           if (
             frameIndex >=
@@ -932,14 +983,8 @@ const {
 
             direction =
               -1;
-          }
 
-
-          /*
-           * Retour à la première frame
-           */
-
-          else if (
+          } else if (
             frameIndex <= 0
           ) {
 
@@ -954,23 +999,208 @@ const {
           showFrame(
             frameIndex
           );
+
+
+          video.dispatchEvent(
+            new CustomEvent(
+              "ply-video-frame"
+            )
+          );
         }
       }
 
 
       /*
-       * =========================================
-       * BOUCLE DE RENDU
-       * =========================================
+       * ========================================================
+       * CAMÉRAS STÉRÉO
+       * ========================================================
        */
 
-      let frameId =
-        null;
+      const leftCamera =
+        new THREE.PerspectiveCamera(
+          45,
+          1,
+          0.01,
+          100
+        );
 
 
-      function animate(
-        currentTime
-      ) {
+      const rightCamera =
+        new THREE.PerspectiveCamera(
+          45,
+          1,
+          0.01,
+          100
+        );
+
+
+      function updateStereoCameras() {
+
+        if (!isStereo) {
+          return;
+        }
+
+
+        const position =
+          camera.position.clone();
+
+
+        const target =
+          controls.target.clone();
+
+
+        const view =
+          target.clone().sub(
+            position
+          );
+
+
+        const leftView =
+          view.clone().applyAxisAngle(
+            new THREE.Vector3(
+              0,
+              1,
+              0
+            ),
+            -stereoAngle
+          );
+
+
+        const rightView =
+          view.clone().applyAxisAngle(
+            new THREE.Vector3(
+              0,
+              1,
+              0
+            ),
+            stereoAngle
+          );
+
+
+        leftCamera.position.copy(
+          position
+        );
+
+
+        rightCamera.position.copy(
+          position
+        );
+
+
+        leftCamera.lookAt(
+          position.clone().add(
+            leftView
+          )
+        );
+
+
+        rightCamera.lookAt(
+          position.clone().add(
+            rightView
+          )
+        );
+
+
+        leftCamera.fov =
+          camera.fov;
+
+        rightCamera.fov =
+          camera.fov;
+
+
+        leftCamera.near =
+          camera.near;
+
+        rightCamera.near =
+          camera.near;
+
+
+        leftCamera.far =
+          camera.far;
+
+        rightCamera.far =
+          camera.far;
+
+
+        leftCamera.updateProjectionMatrix();
+
+        rightCamera.updateProjectionMatrix();
+      }
+
+
+      /*
+       * ========================================================
+       * RESIZE
+       * ========================================================
+       */
+
+      function resize() {
+
+        const width =
+          wrapper.clientWidth;
+
+
+        const height =
+          wrapper.clientHeight;
+
+
+        if (
+          !width ||
+          !height
+        ) {
+          return;
+        }
+
+
+        renderer.setSize(
+          width,
+          height,
+          false
+        );
+
+
+        if (!isStereo) {
+
+          camera.aspect =
+            width / height;
+
+          camera.updateProjectionMatrix();
+
+          return;
+        }
+
+
+        const eyeWidth =
+          width / 2;
+
+
+        const aspect =
+          eyeWidth / height;
+
+
+        leftCamera.aspect =
+          aspect;
+
+        rightCamera.aspect =
+          aspect;
+
+
+        leftCamera.updateProjectionMatrix();
+
+        rightCamera.updateProjectionMatrix();
+      }
+
+
+      /*
+       * ========================================================
+       * RENDU
+       * ========================================================
+       */
+
+      let frameId = null;
+
+
+      function animate(currentTime) {
 
         updateAnimation(
           currentTime
@@ -980,10 +1210,106 @@ const {
         controls.update();
 
 
-        renderer.render(
-          scene,
-          camera
-        );
+        const width =
+          wrapper.clientWidth;
+
+
+        const height =
+          wrapper.clientHeight;
+
+
+        if (
+          !width ||
+          !height
+        ) {
+
+          frameId =
+            requestAnimationFrame(
+              animate
+            );
+
+          return;
+        }
+
+
+        if (isStereo) {
+
+          updateStereoCameras();
+
+
+          const halfWidth =
+            width / 2;
+
+
+          renderer.setScissorTest(
+            true
+          );
+
+
+          renderer.setViewport(
+            0,
+            0,
+            halfWidth,
+            height
+          );
+
+
+          renderer.setScissor(
+            0,
+            0,
+            halfWidth,
+            height
+          );
+
+
+          renderer.render(
+            scene,
+            leftCamera
+          );
+
+
+          renderer.setViewport(
+            halfWidth,
+            0,
+            halfWidth,
+            height
+          );
+
+
+          renderer.setScissor(
+            halfWidth,
+            0,
+            halfWidth,
+            height
+          );
+
+
+          renderer.render(
+            scene,
+            rightCamera
+          );
+
+
+          renderer.setScissorTest(
+            false
+          );
+
+
+        } else {
+
+          renderer.setViewport(
+            0,
+            0,
+            width,
+            height
+          );
+
+
+          renderer.render(
+            scene,
+            camera
+          );
+        }
 
 
         frameId =
@@ -1012,42 +1338,10 @@ const {
 
 
       /*
-       * =========================================
-       * RESIZE
-       * =========================================
+       * ========================================================
+       * RESIZE OBSERVER
+       * ========================================================
        */
-
-      function resize() {
-
-        const width =
-          wrapper.clientWidth;
-
-
-        const height =
-          wrapper.clientHeight;
-
-
-        if (
-          !width ||
-          !height
-        ) {
-          return;
-        }
-
-
-        camera.aspect =
-          width / height;
-
-
-        camera.updateProjectionMatrix();
-
-
-        renderer.setSize(
-          width,
-          height
-        );
-      }
-
 
       const resizeObserver =
         new ResizeObserver(
@@ -1064,18 +1358,18 @@ const {
 
 
       /*
-       * =========================================
-       * DÉMARRAGE
-       * =========================================
+       * ========================================================
+       * START
+       * ========================================================
        */
 
       loadAllFrames();
 
 
       /*
-       * =========================================
+       * ========================================================
        * CLEANUP
-       * =========================================
+       * ========================================================
        */
 
       const cleanupObserver =
@@ -1148,18 +1442,12 @@ const {
         document.body,
         {
           childList: true,
-          subtree: true
+          subtree: true,
         }
       );
     });
   }
 
-
-  /*
-   * =========================================
-   * ASTRO
-   * =========================================
-   */
 
   initPlyVideos();
 
@@ -1170,39 +1458,57 @@ const {
   );
 </script>
 
-
 <style>
- .ply-video {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
-  overflow: hidden;
-  background: transparent;
-  user-select: none;
-}
+  .ply-video {
+    position: relative;
+
+    width: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    background:
+      var(--ply-video-bg, transparent);
+
+    user-select: none;
+  }
+
 
   .ply-video-canvas-wrapper {
+    position: relative;
+
     width: 100%;
     height: 100%;
   }
 
+
   .ply-video-canvas-wrapper canvas {
     display: block;
+
     width: 100% !important;
     height: 100% !important;
+
     cursor: grab;
   }
+
 
   .ply-video-canvas-wrapper canvas:active {
     cursor: grabbing;
   }
 
+
   .ply-video-loading {
     position: absolute;
+
     inset: 0;
 
+    z-index: 10;
+
     display: flex;
+
     align-items: center;
     justify-content: center;
 

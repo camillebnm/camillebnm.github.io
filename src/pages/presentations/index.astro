@@ -1,0 +1,74 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const presentations = await getCollection("presentations");
+
+const sortedPresentations = presentations
+  .filter((presentation) => !presentation.data.draft)
+  .sort((a, b) => {
+    const dateA = a.data.date?.getTime() ?? 0;
+    const dateB = b.data.date?.getTime() ?? 0;
+
+    return dateB - dateA;
+  });
+---
+
+<BaseLayout title="Presentations — Camille Buonomo">
+
+  <header class="presentations-header">
+    <p class="eyebrow">Research</p>
+
+    <h1>Presentations</h1>
+  </header>
+
+  <section class="presentation-list">
+
+    {sortedPresentations.map((presentation) => (
+
+      <a
+        href={`/presentations/${presentation.id}`}
+        class="presentation-list-item"
+      >
+
+        {presentation.data.image && (
+          <img
+            class="presentation-thumbnail"
+            src={presentation.data.image}
+            alt=""
+          />
+        )}
+
+        <div class="presentation-list-content">
+
+          {presentation.data.date && (
+            <p class="presentation-date">
+              {presentation.data.date.getFullYear()}
+            </p>
+          )}
+
+          <h2>
+            {presentation.data.title}
+          </h2>
+
+          {presentation.data.description && (
+            <p class="presentation-description">
+              {presentation.data.description}
+            </p>
+          )}
+
+          {presentation.data.author && (
+            <p class="presentation-author">
+              {presentation.data.author}
+            </p>
+          )}
+
+        </div>
+
+      </a>
+
+    ))}
+
+  </section>
+
+</BaseLayout>

@@ -1,0 +1,66 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+export async function getStaticPaths() {
+  const presentations = await getCollection("presentations");
+
+  return presentations
+    .filter((presentation) => !presentation.data.draft)
+    .map((presentation) => ({
+      params: {
+        slug: presentation.id,
+      },
+      props: {
+        presentation,
+      },
+    }));
+}
+
+const { presentation } = Astro.props;
+const { Content } = await render(presentation);
+---
+
+<BaseLayout title={presentation.data.title}>
+  <article class="presentation">
+
+    <header class="presentation-header">
+
+      {presentation.data.image && (
+        <img
+          class="presentation-image"
+          src={presentation.data.image}
+          alt={presentation.data.title}
+        />
+      )}
+
+      {presentation.data.date && (
+        <p class="presentation-date">
+          {presentation.data.date.getFullYear()}
+        </p>
+      )}
+
+      <h1>
+        {presentation.data.title}
+      </h1>
+
+      {presentation.data.description && (
+        <p class="presentation-description">
+          {presentation.data.description}
+        </p>
+      )}
+
+      {presentation.data.author && (
+        <p class="presentation-author">
+          {presentation.data.author}
+        </p>
+      )}
+
+    </header>
+
+    <div class="presentation-content">
+      <Content />
+    </div>
+
+  </article>
+</BaseLayout>
