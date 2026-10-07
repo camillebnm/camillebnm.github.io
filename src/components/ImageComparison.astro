@@ -37,6 +37,8 @@ for (let i = 0; i < images.length; i += 2) {
 
           <!-- =========================================
                IMAGE ARRIÈRE
+               Cette image reste dans le flux et
+               détermine la hauteur du composant.
                ========================================= -->
 
           {isPdfBack ? (
@@ -135,16 +137,8 @@ for (let i = 0; i < images.length; i += 2) {
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-
-  /*
-   * =========================================
-   * COMPARAISONS
-   * =========================================
-   */
-
   const comparisons =
     document.querySelectorAll(".comparison");
-
 
   comparisons.forEach((comparison) => {
 
@@ -153,12 +147,10 @@ for (let i = 0; i < images.length; i += 2) {
         ".comparison-range"
       ) as HTMLInputElement;
 
-
     const front =
       comparison.querySelector(
         ".comparison-front"
       ) as HTMLElement;
-
 
     const divider =
       comparison.querySelector(
@@ -177,25 +169,16 @@ for (let i = 0; i < images.length; i += 2) {
       front.style.clipPath =
         `inset(0 ${100 - value}% 0 0)`;
 
-
       divider.style.left =
         `${value}%`;
     }
 
-
-    update(
-      Number(range.value)
-    );
-
+    update(Number(range.value));
 
     range.addEventListener(
       "input",
       () => {
-
-        update(
-          Number(range.value)
-        );
-
+        update(Number(range.value));
       }
     );
 
@@ -213,84 +196,56 @@ for (let i = 0; i < images.length; i += 2) {
       const url =
         canvas.getAttribute("data-pdf");
 
-
       if (!url) return;
-
 
       try {
 
         const pdf =
           await pdfjsLib
-            .getDocument({
-              url,
-            })
+            .getDocument({ url })
             .promise;
-
 
         const page =
           await pdf.getPage(1);
 
-
         const container =
           canvas.parentElement;
 
-
         if (!container) return;
 
-
         const baseViewport =
-          page.getViewport({
-            scale: 1,
-          });
-
-
-        /*
-         * On prend la largeur disponible
-         */
+          page.getViewport({ scale: 1 });
 
         const containerWidth =
           container.clientWidth;
 
-
         const scale =
-          containerWidth /
-          baseViewport.width;
-
+          containerWidth / baseViewport.width;
 
         const viewport =
-          page.getViewport({
-            scale,
-          });
-
+          page.getViewport({ scale });
 
         const context =
           canvas.getContext("2d");
 
-
         if (!context) return;
-
 
         canvas.width =
           viewport.width;
 
-
         canvas.height =
           viewport.height;
-
 
         canvas.style.width =
           `${viewport.width}px`;
 
-
         canvas.style.height =
           `${viewport.height}px`;
-
 
         await page.render({
           canvasContext: context,
           viewport,
         }).promise;
-
 
       } catch (error) {
 
@@ -305,7 +260,7 @@ for (let i = 0; i < images.length; i += 2) {
 
     /*
      * =========================================
-     * TOUS LES PDF DE CETTE COMPARAISON
+     * PDF
      * =========================================
      */
 
@@ -314,16 +269,11 @@ for (let i = 0; i < images.length; i += 2) {
         "canvas[data-pdf]"
       );
 
-
-    pdfCanvases.forEach(
-      (canvas) => {
-
-        renderPdf(
-          canvas as HTMLCanvasElement
-        );
-
-      }
-    );
+    pdfCanvases.forEach((canvas) => {
+      renderPdf(
+        canvas as HTMLCanvasElement
+      );
+    });
 
 
     /*
@@ -334,7 +284,6 @@ for (let i = 0; i < images.length; i += 2) {
 
     let resizeTimeout: number;
 
-
     window.addEventListener(
       "resize",
       () => {
@@ -343,25 +292,21 @@ for (let i = 0; i < images.length; i += 2) {
           resizeTimeout
         );
 
-
         resizeTimeout =
           window.setTimeout(
             () => {
 
               pdfCanvases.forEach(
                 (canvas) => {
-
                   renderPdf(
                     canvas as HTMLCanvasElement
                   );
-
                 }
               );
 
             },
             150
           );
-
       }
     );
 
@@ -377,12 +322,9 @@ for (let i = 0; i < images.length; i += 2) {
 
   .comparison-container {
     width: 100%;
-
     display: grid;
-
     gap: 2rem;
-
-    margin: 4rem 0;
+    margin: 0;
   }
 
 
@@ -392,49 +334,34 @@ for (let i = 0; i < images.length; i += 2) {
 
   .comparison {
     position: relative;
-
     width: 100%;
-
-    aspect-ratio: 16 / 9;
-
     overflow: hidden;
-
     border-radius: 12px;
-
-    background: #eee;
-
-    user-select: none;
-  }
-
-
-  /* =========================================
-     IMAGES / PDF
-     ========================================= */
-
-  .comparison-media {
-    position: absolute;
-
-    inset: 0;
-
-    width: 100%;
-    height: 100%;
-
-    object-fit: contain;
-
-    display: block;
-
-    pointer-events: none;
-
+    background: white;
     user-select: none;
   }
 
 
   /* =========================================
      IMAGE ARRIÈRE
+     Elle reste dans le flux et définit
+     la hauteur du composant.
      ========================================= */
 
   .comparison-back {
+    position: relative;
+
     z-index: 1;
+
+    width: 100%;
+    height: auto;
+
+    display: block;
+
+    object-fit: contain;
+
+    pointer-events: none;
+    user-select: none;
   }
 
 
@@ -443,18 +370,42 @@ for (let i = 0; i < images.length; i += 2) {
      ========================================= */
 
   .comparison-front {
+    position: absolute;
+
+    inset: 0;
+
     z-index: 2;
+
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: contain;
 
     clip-path:
       inset(0 50% 0 0);
+
+    pointer-events: none;
+    user-select: none;
   }
 
 
   /* =========================================
-     PDF CANVAS
+     PDF
      ========================================= */
 
-  canvas.comparison-media {
+  canvas.comparison-back {
+    display: block;
+
+    width: 100% !important;
+    height: auto !important;
+  }
+
+
+  canvas.comparison-front {
+    position: absolute;
+
     width: 100% !important;
     height: 100% !important;
 
@@ -486,9 +437,7 @@ for (let i = 0; i < images.length; i += 2) {
     border-radius: 6px;
 
     font-size: 0.8rem;
-
     font-weight: 500;
-
     line-height: 1.2;
 
     box-shadow:
@@ -503,23 +452,11 @@ for (let i = 0; i < images.length; i += 2) {
   }
 
 
-  /*
-   * Label image avant
-   *
-   * En haut à gauche.
-   */
-
   .comparison-label-front {
     top: 14px;
     left: 14px;
   }
 
-
-  /*
-   * Label image arrière
-   *
-   * En haut à droite.
-   */
 
   .comparison-label-back {
     top: 14px;
@@ -528,7 +465,7 @@ for (let i = 0; i < images.length; i += 2) {
 
 
   /* =========================================
-     BARRE VERTICALE
+     BARRE
      ========================================= */
 
   .comparison-divider {
@@ -619,7 +556,7 @@ for (let i = 0; i < images.length; i += 2) {
 
 
   /* =========================================
-     CURSEUR INVISIBLE
+     CURSEUR
      ========================================= */
 
   .comparison-range {
@@ -661,7 +598,7 @@ for (let i = 0; i < images.length; i += 2) {
 
 
   /* =========================================
-     4 IMAGES = 2 COMPARAISONS
+     2 COMPARAISONS
      ========================================= */
 
   .comparison-container:has(
@@ -684,12 +621,6 @@ for (let i = 0; i < images.length; i += 2) {
       grid-template-columns: 1fr;
     }
 
-
-    .comparison {
-      aspect-ratio: 16 / 10;
-    }
-
-
     .comparison-label {
       padding:
         0.25rem 0.5rem;
@@ -697,12 +628,10 @@ for (let i = 0; i < images.length; i += 2) {
       font-size: 0.7rem;
     }
 
-
     .comparison-label-front {
       top: 8px;
       left: 8px;
     }
-
 
     .comparison-label-back {
       top: 8px;

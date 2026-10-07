@@ -1,0 +1,228 @@
+---
+title: "GDL 07/10 : SharpNet"
+description: "Enhancing MLPs to Represent Functions with Controlled
+Non-differentiability"
+date: 2026-10-02
+author: "HANTING NIU, JUNKAI DENG, WENCHENG WANG"
+draft: false
+---
+
+import Presentation from "../../components/Presentation.astro";
+import Slide from "../../components/Slide.astro";
+
+import Stereogram from "../../components/Stereogram.astro";
+import AutoStereogram from "../../components/AutoStereogram.astro";
+import PlyVideo from "../../components/PlyVideo.astro";
+import ImageComparison from "../../components/ImageComparison.astro";
+import GeoGebra from "../../components/GeoGebra.astro";
+
+<Presentation>
+
+
+<Slide>
+
+# SharpNet: Enhancing MLPs to Represent Functions with Controlled Non-differentiability
+<img
+  src="/images/presentations/GDLSHARP/sharp.png"
+  alt="SharpNet"
+  style="width: 50%; margin: 0 auto; display: block;"
+/>
+
+HANTING NIU, JUNKAI DENG, WENCHENG WANG, Siggraph2026
+
+</Slide>
+
+
+<Slide>
+# Fonctions Implicites
+<img
+  src="/images/presentations/GDLSHARP/star_gt.png"
+  alt="SharpNet"
+  style="width: 35%; margin: 0 auto; display: block;"
+/>
+
+$$
+\begin{cases}
+\|\nabla g(x)\| = 1, & x \in \Omega,\\
+g(x) = 0, & x \in \mathcal{S}.
+\end{cases}
+$$
+
+</Slide>
+
+<Slide>
+# Discontinuité du gradient
+
+<div style="width: 50%; aspect-ratio: 1 / 1; margin: 0 auto;">
+  <img
+    src="/images/presentations/GDLSHARP/star_gt_medial_axis.png"
+    alt="mda"
+    style="width: 100%; height: 100%; object-fit: contain; display: block;"
+  />
+</div>
+
+</Slide>
+
+
+<Slide>
+# Discontinuité du gradient
+
+<div style="width: 50%; aspect-ratio: 1 / 1; margin: 0 auto;">
+  <ImageComparison
+    images={[
+      {
+        src: "/images/presentations/GDLSHARP/star_gt.png",
+        alt: "Ground truth",
+      },
+      {
+        src: "/images/presentations/GDLSHARP/star_recon.png",
+        alt: "Reconstruction",
+      },
+    ]}
+    labels={["Ground Truth", "Reconstruction"]}
+  />
+</div>
+Les MLP sont $C^\infty$ en tant que composition de fonctions $C^\infty$
+</Slide>
+
+
+
+<Slide>
+# Comment controler la non differentiabilite ?
+-> Utilisation des fonctions $C^0$
+<div style="width: 70%; max-width: 900px; margin: 0 auto;">
+  <GeoGebra
+    id="mdc5cdmd"
+    appName="classic"
+    height="300px"
+  />
+</div>
+
+
+</Slide>
+
+
+<Slide>
+# Construction 
+$$
+\Phi_\theta(x) = \phi_\theta(x, f(x))
+$$
+
+-> Choix/Construction de f ? 
+
+Soit $\mathcal{M}$ l'ensemble de codimension 1 où $f$ est $C^0$.
+
+- $f$ doit être $C^2$ sur $\Omega \setminus \mathcal{M}$
+- $f$ doit être $C^0$ sur $\mathcal{M}$
+- $\partial_n f$ doit avoir un saut sur $\mathcal{M} \setminus \partial\mathcal{M}$
+
+</Slide>
+
+<Slide>
+
+# Construction 
+$$
+\Phi_\theta(x) = \phi_\theta(x, f(x))
+$$
+
+-> Choix/Construction de f ? 
+
+Soit $\mathcal{M}$ l'ensemble de codimension 1 où $f$ est $C^0$.
+
+$$
+\begin{cases}
+\nabla^2 f(x) = h(x) \in C^0, & x \in \Omega \setminus \mathcal{M} \\
+\partial_{n^+} f(x) - \partial_{n^-} f(x) = g(x) \ne 0, & x \in \mathcal{M} \setminus \partial\mathcal{M} \\
+\displaystyle\lim_{y \rightarrow x} f(y) = f(x), & x \in \mathcal{M}
+\end{cases}
+$$
+
+
+</Slide>
+
+<Slide>
+# Équation de Poisson
+
+La solution existe sous forme intégrale (identités de Green)
+
+$$
+f(x) = \int_\Omega h(y)G_x(y)\,dV_y + \int_\mathcal{M} g(y)G_x(y)\,dS_y
+$$
+
+avec $G_x(y)$ la fonction de Green évaluée au point d'observation $x$.
+
+- 2D : $G_x(y) = \frac{1}{2\pi}\log\lVert x-y\rVert$
+- 3D : $G_x(y) = -\frac{1}{4\pi\lVert x-y\rVert}$
+
+-> TRICKS DE FOU MALADE : $h = 0$, $g = 1$
+
+</Slide>
+
+<Slide>
+# Équation de Poisson
+
+La solution existe sous forme intégrale (identités de Green)
+
+$$
+f(x) =  \int_\mathcal{M} G_x(y)\,dS_y
+$$
+
+Existe en forme close pour $\mathcal{M}$ segments ou triangles -> Mesh
+
+</Slide>
+
+<Slide>
+# Implémentation
+
+Partition par face : $f(x) = \sum_i \Gamma_i(x)$
+
+Avec : 
+- $\Gamma_i(x) = \varphi_i(D(x)) \int_{\mathcal{M}_i} G_x(y)dS_y$
+- $\varphi_i(x)$ un support compact
+- $D(x)$ une divergence 
+
+</Slide>
+
+<Slide>
+# Training 
+Loss de fitting : $\sum_i \| GT(x_i) - \Phi(x_i, f(x_i)\|$
+
+Si apprentissage de $\mathcal{M}$:
+- Loss de regularisation : $\sum_i \|v_i\| + <v_i, u_i>$
+
+
+<div style="width: 70%; max-width: 900px; margin: 0 auto;">
+  <GeoGebra
+    id="yqywcm2x"
+    appName="classic"
+    height="300px"
+  />
+</div>
+
+
+</Slide>
+
+<Slide>
+# Resultats 
+
+<img
+  src="/images/presentations/GDLSHARP/res2.png"
+  alt="SharpNet"
+  style="width: 70%; margin: 0 auto; display: block;"
+/>
+
+
+</Slide>
+
+<Slide>
+# Resultats 
+
+<img
+  src="/images/presentations/GDLSHARP/res1.png"
+  alt="SharpNet"
+  style="width: 70%; margin: 0 auto; display: block;"
+/>
+
+
+</Slide>
+</Presentation>

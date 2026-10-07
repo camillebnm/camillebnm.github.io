@@ -2,355 +2,356 @@
 ---
 
 <div class="slide">
-  <slot />
+  <div class="slide-content">
+    <slot />
+  </div>
 </div>
+
+<!--
+  Ajustement automatique (optionnel mais recommandé) :
+  si le contenu dépasse de la slide, on réduit --fit (échelle globale du texte
+  ET des espaces) jusqu'à ce que tout rentre. Se relance à chaque
+  redimensionnement (entrée/sortie du plein écran, rotation, etc.).
+-->
+<script>
+  const MIN_FIT = 0.4;
+
+  function overflows(content: HTMLElement): boolean {
+    const limit =
+      content.getBoundingClientRect().bottom -
+      parseFloat(getComputedStyle(content).paddingBottom);
+    const items = [
+      ...content.children,
+      ...content.querySelectorAll(".katex-display, table"),
+    ];
+    return items.some((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom > limit + 1 || el.scrollWidth > el.clientWidth + 1;
+    });
+  }
+
+  function fit(slide: HTMLElement) {
+    const content = slide.querySelector<HTMLElement>(":scope > .slide-content");
+    if (!content || !slide.clientHeight) return; // slide masquée
+    let k = 1;
+    slide.style.setProperty("--fit", "1");
+    while (k > MIN_FIT && overflows(content)) {
+      k = Math.max(MIN_FIT, k - 0.03);
+      slide.style.setProperty("--fit", k.toFixed(2));
+    }
+  }
+
+  const slides = document.querySelectorAll<HTMLElement>(".slide");
+  const ro = new ResizeObserver((entries) =>
+    entries.forEach((e) => fit(e.target as HTMLElement)),
+  );
+  slides.forEach((s) => {
+    ro.observe(s);
+    s.addEventListener("load", () => fit(s), true); // images chargées tardivement
+  });
+  document.fonts?.ready.then(() => slides.forEach((s) => fit(s)));
+</script>
+
 <style>
   /* ==================================================
-     MODE NORMAL
+     SLIDE (identique en mode normal et plein écran)
+     --------------------------------------------------
+     Tout est dimensionné à partir d'une seule unité :
+       --base = 1% de la largeur d'un canevas 16:9 qui
+                tiendrait dans la slide (donc limité par
+                la plus petite des deux dimensions)
+       --u    = --base × --fit (--fit < 1 si le contenu
+                déborde, voir le script)
+     => le rendu s'adapte à toute résolution / ratio d'écran,
+        et la version « normale » est une miniature fidèle
+        de la version plein écran.
+
+     Personnalisation (variables optionnelles) :
+       --slide-accent, --slide-bg, --slide-ink
      ================================================== */
 
   .slide {
+    --base: min(1cqw, calc(1cqh * 16 / 9));
+    --u: calc(var(--base) * var(--fit, 1));
+
+    --accent: var(--slide-accent, #2563eb);
+    --rule: color-mix(in srgb, currentColor 18%, transparent);
+
+    container-type: size; /* active les unités cqw / cqh pour les enfants */
+
+    position: relative;
+    box-sizing: border-box;
+
     width: 100%;
     aspect-ratio: 16 / 9;
 
-    box-sizing: border-box;
+    background: var(--slide-bg, white);
+    color: var(--slide-ink, currentColor);
+  }
 
-    position: relative;
-    overflow: visible;
+  .slide-content {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
 
     display: flex;
     flex-direction: column;
-
-    justify-content: center;
+    justify-content: flex-start;
     align-items: stretch;
 
-    padding: 4rem 7vw;
+    /* l'espacement entre composants est en em : il suit le texte,
+       donc se resserre automatiquement quand --fit diminue */
+    gap: 0.8em;
 
-    background: white;
+    padding: calc(var(--base) * 4.5) calc(var(--base) * 6) calc(var(--base) * 3.5);
 
+    font-size: calc(var(--u) * 1.8);
+    line-height: 1.4;
     text-align: left;
   }
 
-  /* Décoration */
-
-  .slide::before {
-    content: "";
-
-    position: absolute;
-
-    top: 0;
-    left: 7vw;
-
-    width: 3rem;
-    height: 3px;
-
-    background: currentColor;
-
-    opacity: 0.8;
+  /* Les enfants directs gardent leur taille, sauf les figures (voir plus bas) */
+  .slide-content > :global(*) {
+    flex: none;
+    margin: 0;
   }
 
 
   /* ==================================================
-     TITRES — MODE NORMAL
+     TITRES  (style Beamer : titre + filet, version moderne)
      ================================================== */
 
-  .slide :global(h1),
-  .slide :global(h2) {
-    position: relative;
-
-    width: 100%;
-
-    margin: 0 0 2.5rem;
-
-    text-align: left;
-
-    z-index: 2;
-  }
-
-  .slide :global(h1) {
-    font-size: clamp(1.8rem, 2.4vw, 3rem);
-
-    line-height: 1.1;
+  .slide-content :global(h1),
+  .slide-content :global(h2) {
+    margin: 0 0 0.35em;
 
     font-weight: 700;
-
+    line-height: 1.1;
     letter-spacing: -0.025em;
+
+    text-wrap: balance;
   }
 
-  .slide :global(h2) {
-    font-size: clamp(1.6rem, 2.1vw, 2.6rem);
+  /* Taille FIXE : basée sur --base (qui ne dépend que de la taille de
+     l'écran) et non sur --u / em, donc jamais affectée par --fit.
+     Les marges et le filet, en em du titre, restent fixes eux aussi. */
+  .slide-content :global(h1) {
+    font-size: calc(var(--base) * 3.4);
+  }
 
-    line-height: 1.1;
-
+  .slide-content :global(h2) {
+    font-size: calc(var(--base) * 2.9);
     font-weight: 650;
-
     letter-spacing: -0.02em;
   }
 
+  /* filet : segment d'accent épais + trait fin sur toute la largeur */
+  .slide-content :global(h1)::after,
+  .slide-content :global(h2)::after {
+    content: "";
+    display: block;
 
-  /* ==================================================
-     SOUS-TITRES
-     ================================================== */
+    margin-top: 0.45em;
+    height: max(3px, 0.09em);
 
-  .slide :global(h3) {
-    width: 100%;
+    background:
+      linear-gradient(var(--accent), var(--accent)) left bottom / 2.4em 100% no-repeat,
+      linear-gradient(var(--rule), var(--rule)) left bottom / 100% 33% no-repeat;
+  }
 
-    margin: 0 0 1.5rem;
+  .slide-content :global(h3) {
+    margin: 0;
 
-    font-size: clamp(1.3rem, 1.7vw, 2rem);
-
+    font-size: 1.15em;
+    font-weight: 650;
     line-height: 1.2;
 
-    font-weight: 600;
+    color: var(--accent);
   }
 
 
   /* ==================================================
-     CORPS DE TEXTE
+     TEXTE ET LISTES
      ================================================== */
 
-  .slide :global(p) {
-    width: min(72%, 1050px);
-
-    margin: 0 0 1.2rem;
-
-    font-size: clamp(1.05rem, 1.35vw, 1.5rem);
-
-    line-height: 1.55;
-
-    text-align: left;
-
-    flex-shrink: 0;
+  .slide-content :global(p),
+  .slide-content :global(ul),
+  .slide-content :global(ol) {
+    max-width: calc(var(--base) * 88); /* pleine largeur en 16:9, plafonné en ultra-wide */
   }
 
-
-  /* ==================================================
-     LISTES
-     ================================================== */
-
-  .slide :global(ul),
-  .slide :global(ol) {
-    width: min(72%, 1050px);
-
-    margin: 0 0 1.5rem;
-
-    padding-left: 1.4em;
-
-    font-size: clamp(1.05rem, 1.35vw, 1.5rem);
-
-    line-height: 1.55;
-
-    text-align: left;
+  .slide-content :global(p) {
+    text-wrap: pretty;
   }
 
-  .slide :global(li) {
-    margin-bottom: 0.5rem;
+  .slide-content :global(ul),
+  .slide-content :global(ol) {
+    padding-left: 1.3em;
   }
 
-
-  /* ==================================================
-     FORMULES — MODE NORMAL
-     ================================================== */
-
-  .slide :global(.katex) {
-    font-size: 1.45em;
+  .slide-content :global(li) {
+    margin: 0 0 0.35em;
+    padding-left: 0.15em;
   }
 
-  .slide :global(.katex-display) {
-    margin: 1.8rem 0;
-
-    font-size: 1.6em;
-    width: 100%;
-    white-space: nowrap;
-    width: 100%;
-    max-width: 100%;
-    overflow: visible;
+  .slide-content :global(li:last-child) {
+    margin-bottom: 0;
   }
 
-  /* ==================================================
-     IMAGES
-     ================================================== */
-
-  .slide :global(img) {
-    max-width: 100%;
-
-    object-fit: contain;
+  .slide-content :global(li::marker) {
+    color: var(--accent);
   }
 
-
-  /* ==================================================
-     TABLEAUX
-     ================================================== */
-
-  .slide :global(table) {
-    width: 100%;
-
-    border-collapse: collapse;
-
-    font-size: clamp(0.9rem, 1.1vw, 1.25rem);
+  .slide-content :global(li > ul),
+  .slide-content :global(li > ol) {
+    margin-top: 0.35em;
+    font-size: 0.92em;
   }
 
-  .slide :global(th),
-  .slide :global(td) {
-    padding: 0.6rem 0.9rem;
+  /* « bloc » à la Beamer */
+  .slide-content :global(blockquote) {
+    padding: 0.6em 1em;
 
-    text-align: left;
+    border-left: 0.18em solid var(--accent);
+    border-radius: 0 0.3em 0.3em 0;
 
-    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
   }
 
+  .slide-content :global(blockquote > p) {
+    margin: 0;
+  }
 
-  /* ==================================================
-     PETIT TEXTE
-     ================================================== */
+  .slide-content :global(blockquote > p + p) {
+    margin-top: 0.5em;
+  }
 
-  .slide :global(small) {
+  .slide-content :global(small) {
     font-size: 0.75em;
-
     opacity: 0.6;
   }
 
 
   /* ==================================================
-     FULLSCREEN
+     FORMULES
+     ================================================== */
+
+  .slide-content :global(.katex) {
+    font-size: 1.3em;
+  }
+
+  .slide-content :global(.katex-display) {
+    margin: 0.2em 0;
+    padding: 0.1em 0;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .slide-content :global(.katex-display > .katex) {
+    font-size: 1.5em;
+  }
+
+
+  /* ==================================================
+     IMAGES / FIGURES
+     --------------------------------------------------
+     Elles absorbent l'espace vertical restant et
+     rétrécissent (sans déformation) si besoin. Une
+     hauteur minimale évite qu'elles disparaissent :
+     c'est alors le texte qui est réduit via --fit.
+     ================================================== */
+
+  /* image seule dans un paragraphe (cas Markdown) */
+  .slide-content :global(p:has(> img:only-child)),
+  .slide-content :global(figure) {
+    flex: 1 1 0;
+    min-height: calc(var(--u) * 12);
+    max-width: none;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .slide-content :global(figure) {
+    flex-direction: column;
+    gap: 0.3em;
+  }
+
+  .slide-content :global(img),
+  .slide-content :global(svg) {
+    max-width: 100%;
+    max-height: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    object-fit: contain;
+  }
+
+  .slide-content :global(figure > img),
+  .slide-content :global(figure > svg) {
+    flex: 1 1 0;
+  }
+
+  .slide-content :global(figcaption) {
+    font-size: 0.75em;
+    opacity: 0.7;
+  }
+
+  /* image directement enfant de la slide (hors <p>) */
+  .slide-content > :global(img) {
+    flex: 1 1 0;
+    min-height: calc(var(--u) * 12);
+    align-self: center;
+  }
+
+
+  /* ==================================================
+     TABLEAUX  (style « booktabs »)
+     ================================================== */
+
+  .slide-content :global(table) {
+    width: 100%;
+    max-width: calc(var(--base) * 88);
+
+    border-collapse: collapse;
+
+    font-size: 0.85em;
+  }
+
+  .slide-content :global(th),
+  .slide-content :global(td) {
+    padding: 0.4em 0.8em;
+
+    text-align: left;
+
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .slide-content :global(th) {
+    font-weight: 650;
+
+    border-bottom: 2px solid currentColor;
+  }
+
+
+  /* ==================================================
+     PLEIN ÉCRAN
+     --------------------------------------------------
+     Il suffit de donner à la slide la taille de l'écran :
+     toutes les tailles, marges et espaces se recalculent
+     à partir de celle-ci (aucune règle dupliquée).
      ================================================== */
 
   :global(.presentation-mode) .slide {
     width: 100vw;
 
     height: 100vh;
-
-    min-height: 100vh;
+    height: 100dvh;
 
     aspect-ratio: auto;
 
-    padding: 14rem 8vw 6vh;
-  }
-
-
-  /* ==================================================
-     TITRES — FULLSCREEN
-     ================================================== */
-
-  :global(.presentation-mode) .slide :global(h1),
-  :global(.presentation-mode) .slide :global(h2) {
-    position: absolute;
-
-    top: 6vh;
-    left: 8vw;
-
-    width: calc(100% - 16vw);
-
-    margin: 0;
-
-    z-index: 2;
-  }
-
-  :global(.presentation-mode) .slide :global(h1) {
-    font-size: clamp(2.5rem, 4vw, 5rem);
-
-    line-height: 1.05;
-
-    font-weight: 700;
-
-    letter-spacing: -0.035em;
-  }
-
-  :global(.presentation-mode) .slide :global(h2) {
-    font-size: clamp(2rem, 3vw, 3.5rem);
-
-    line-height: 1.1;
-
-    font-weight: 650;
-
-    letter-spacing: -0.025em;
-  }
-
-
-  /* ==================================================
-     CORPS DE TEXTE — FULLSCREEN
-     ================================================== */
-
-  :global(.presentation-mode) .slide :global(p) {
-    width: min(72%, 1200px);
-
-    max-width: 72%;
-
-    font-size: clamp(1.3rem, 1.65vw, 1.9rem);
-
-    line-height: 1.6;
-
-    margin-bottom: 1.5rem;
-  }
-
-  :global(.presentation-mode) .slide :global(ul),
-  :global(.presentation-mode) .slide :global(ol) {
-    width: min(72%, 1200px);
-
-    max-width: 72%;
-
-    font-size: clamp(1.3rem, 1.65vw, 1.9rem);
-
-    line-height: 1.6;
-  }
-
-  :global(.presentation-mode) .slide :global(h3) {
-    font-size: clamp(1.6rem, 2vw, 2.4rem);
-  }
-
-
-  /* ==================================================
-     FORMULES — FULLSCREEN
-     ================================================== */
-
-  :global(.presentation-mode) .slide :global(.katex) {
-    font-size: 1.6em;
-  }
-
-  :global(.presentation-mode) .slide :global(.katex-display) {
-    font-size: 1.8em;
-
-    margin: 2.5rem 0;
-
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-
-  /* ==================================================
-     IMAGES — FULLSCREEN
-     ================================================== */
-
-  :global(.presentation-mode) .slide :global(img) {
-    max-width: 100%;
-
-    max-height: 68vh;
-  }
-
-
-  /* ==================================================
-     TABLEAUX — FULLSCREEN
-     ================================================== */
-
-  :global(.presentation-mode) .slide :global(table) {
-    font-size: clamp(1rem, 1.3vw, 1.5rem);
-  }
-
-  :global(.presentation-mode) .slide :global(th),
-  :global(.presentation-mode) .slide :global(td) {
-    padding: 0.8rem 1.1rem;
-  }
-
-
-  /* ==================================================
-     DÉCORATION — FULLSCREEN
-     ================================================== */
-
-  :global(.presentation-mode) .slide::before {
-    left: 8vw;
-
-    width: 4rem;
-
-    height: 4px;
+    overflow: hidden;
   }
 </style>
