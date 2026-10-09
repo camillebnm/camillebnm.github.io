@@ -41,6 +41,7 @@ interface Props {
   /** Plafond du devicePixelRatio, pour limiter le coût GPU */
   maxPixelRatio?: number;
   class?: string;
+  textBlocks?: TextBlock[];
 }
 
 const {
@@ -56,6 +57,7 @@ const {
   fps = 10,
   initialZoom = 1.15,
   class: className = '',
+  textBlocks = [],
 } = Astro.props;
 
 const modules = import.meta.glob('/src/shaders/**/*.{glsl,frag,vert}', {
@@ -100,23 +102,66 @@ const config = JSON.stringify({
   animated: animated ?? null,
   maxPixelRatio,
 }).replace(/</g, '\\u003c');
+
+
+interface TextBlock {
+  text: string
+  color?: string
+  size?: number
+  x: number
+  y: number
+  clicks?: number
+}
+
 ---
+
+
 
 <div class:list={['shader-canvas', className]} data-shader-canvas>
   <div class="sc-view"></div>
+
+  <div class="shader-overlay">
+    {textBlocks.map((block) => (
+      <div
+        class="shader-text"
+        data-show-after-click={block.clicks ?? 0}
+        style={`left:${block.x}%;top:${block.y}%;color:${block.color ?? 'white'};font-size:${block.size ?? 24}px`}
+        hidden={!!block.clicks}
+      >
+        {block.text}
+      </div>
+    ))}
+  </div>
+
   {meshUrls.length > 0 && <div class="sc-loading">Chargement du modèle…</div>}
-  {
-    fullscreen && (
-      <button type="button" class="sc-fs" aria-label="Plein écran" title="Plein écran">
-        ⛶
-      </button>
-    )
-  }
+
+  {fullscreen && (
+    <button type="button" class="sc-fs" aria-label="Plein écran" title="Plein écran">
+      ⛶
+    </button>
+  )}
+
   <pre class="sc-error" hidden></pre>
   <script is:inline type="application/json" class="sc-config" set:html={config} />
 </div>
 
 <style>
+.shader-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.shader-text {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: pre-wrap;
+}
+
+.shader-text[hidden] {
+  display: none;
+}
+
   .shader-canvas {
     position: relative;
     width: 100%;
@@ -199,6 +244,9 @@ const config = JSON.stringify({
     Box3,
     type BufferGeometry,
   } from 'three';
+
+import renderMathInElement from 'katex/contrib/auto-render'
+import 'katex/dist/katex.min.css'
 
   const PRELUDE = `uniform vec3 iResolution;
 uniform float iTime;
@@ -284,7 +332,15 @@ void main() {
       errBox.hidden = false;
       console.error('[ShaderCanvas]', msg);
     };
-
+	root.querySelectorAll<HTMLElement>('.shader-text').forEach((el) => {
+	  renderMathInElement(el, {
+	    delimiters: [
+	      { left: '$$', right: '$$', display: true },
+	      { left: '$', right: '$', display: false },
+	    ],
+	    throwOnError: false,
+	  })
+	})
     let plyGeometries: BufferGeometry[] = [];
     if (cfg.mode === 'mesh' && cfg.meshUrls?.length) {
       try {
@@ -329,16 +385,20 @@ void main() {
       iTimeDelta: { value: 0 },
       iFrame: { value: 0 },
       iMouse: { value: new Vector4(0, 0, 0, 0) },
+      u_clickCount: { value: 0 },
+      u_clickTimes: { value: new Float32Array(100) },
     };
-
+let clickCount = 0;
+const clickTimes: number[] = [];
     const hasMain = /void\s+main\s*\(/.test(cfg.frag);
-    const material = new ShaderMaterial({
-      uniforms,
-      vertexColors: !!plyGeometries[0]?.getAttribute('color'),
-      vertexShader: PRELUDE + (isMesh ? (cfg.vert ?? MESH_VERT) : QUAD_VERT),
-      fragmentShader: PRELUDE + cfg.frag + (hasMain ? '' : IMAGE_MAIN),
-    });
 
+
+const material = new ShaderMaterial({
+  uniforms,
+  vertexColors: !!plyGeometries[0]?.getAttribute('color'),
+  vertexShader: PRELUDE + (isMesh ? (cfg.vert ?? MESH_VERT) : QUAD_VERT),
+  fragmentShader: PRELUDE + cfg.frag + (hasMain ? '' : IMAGE_MAIN),
+})
     // Les numéros de ligne du log sont décalés par le prélude et le préambule de Three.
     renderer.debug.onShaderError = (gl, _program, vs, fs) => {
       const log =
@@ -484,12 +544,23 @@ void main() {
         ];
       };
       canvas.addEventListener('pointerdown', (e) => {
-        const [x, y] = pos(e);
-        down = true;
-        m.set(x, y, x, y);
-        canvas.setPointerCapture(e.pointerId);
-        requestRender();
-      });
+      
+  clickCount = (clickCount + 1)
+  material.uniforms.u_clickCount.value = clickCount
+ root.querySelectorAll<HTMLElement>(".shader-text").forEach((el) => {
+  el.hidden = clickCount < Number(el.dataset.showAfterClick)
+})
+
+  if (clickCount <= 100) {
+  uniforms.u_clickTimes.value[clickCount - 1] = time;
+}
+
+  const [x, y] = pos(e)
+  down = true
+  m.set(x, y, x, y)
+  canvas.setPointerCapture(e.pointerId)
+  requestRender()
+});
       canvas.addEventListener('pointermove', (e) => {
         if (!down) return;
         const [x, y] = pos(e);

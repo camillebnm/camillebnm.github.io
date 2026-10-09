@@ -40,6 +40,19 @@ CNRS · Université Lyon 1 · INSA Lyon
 </Slide>
 
 <Slide>
+# Test shader
+  <div style={{ height: '70%' }}>
+    <ShaderCanvas shader="mvt_diffeo.frag" animated={true} textBlocks={[
+    { text: "$x$", x: 22, y: 70, color: "#4488ff", size: 28 , clicks: 1},
+    { text: "$y = D(x)$", x: 77, y: 50, color: "green", size: 22, clicks: 2 },
+    { text: "Paramétrisation : $D_t$", x: 50, y: 50, color: "red", size: 30, clicks: 3 },
+  ]}/>
+  </div>
+</Slide>
+
+
+
+<Slide>
 <div style={{ height: '400px' }}>
   <ShaderCanvas mesh={[
       "forw_time_0.ply",
