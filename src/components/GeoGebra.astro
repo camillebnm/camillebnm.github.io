@@ -1,35 +1,205 @@
 ---
 interface Props {
+  /** material_id GeoGebra (ex. "mdc5cdmd") */
   id: string;
-  width?: string;
-  height?: string;
+  appName?: string;
+  /** Taille d'origine de la ressource, en px. Si absente, lue via l'API GeoGebra. */
+  width?: number;
+  height?: number;
+  /** Appelle showAllObjects() au chargement. Désactivé par défaut : la vue
+      enregistrée dans la ressource est en général déjà bien cadrée. */
+  showAll?: boolean;
 }
 
-const {
-  id,
-  width = "100%",
-  height = "500px",
-} = Astro.props;
+const { id, appName = "classic", width, height, showAll = false } = Astro.props;
+
+// id unique par instance (plusieurs applets sur la même page)
+const uid = `ggb-${id}-${Math.random().toString(36).slice(2, 8)}`;
 ---
 
-<div class="geogebra-container">
-  <iframe
-    src={`https://www.geogebra.org/material/iframe/id/${id}/width/1700/height/1000/ai/false/smb/false/stb/false/sri/false/rc/false`}
-    width={width}
-    height={height}
-    style="border: 0;"
-    allowfullscreen
-  ></iframe>
+<div class="geogebra">
+  <!-- boîte dimensionnée en JS : l'applet y est mis à l'échelle (« contain »), centré -->
+  <div class="geogebra-scale">
+    <div
+      class="geogebra-container"
+      id={uid}
+      data-material-id={id}
+      data-app-name={appName}
+      data-width={width}
+      data-height={height}
+      data-show-all={showAll ? "1" : undefined}
+    >
+    </div>
+  </div>
 </div>
 
-<style>
-  .geogebra-container {
-    width: 100%;
-    display: flex;
+<script>
+  const w = window as any;
+
+  function loadGeoGebra(): Promise<void> {
+    if (w.GGBApplet) return Promise.resolve();
+    if (!w.__ggbLoading) {
+      w.__ggbLoading = new Promise<void>((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://www.geogebra.org/apps/deployggb.js";
+        script.onload = () => resolve();
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    return w.__ggbLoading;
   }
 
-  iframe {
-    display: block;
+  /** Taille avec laquelle la ressource a été construite (props, sinon API GeoGebra). */
+  async function authoredSize(container: HTMLElement) {
+    const pw = Number(container.dataset.width);
+    const ph = Number(container.dataset.height);
+    if (pw > 0 && ph > 0) return { w: pw, h: ph };
+
+    try {
+      const res = await fetch(
+        `https://api.geogebra.org/v1.0/materials/${container.dataset.materialId}`,
+      );
+      const json = await res.json();
+      const m = Array.isArray(json) ? json[0] : json;
+      if (m?.width > 0 && m?.height > 0) return { w: m.width, h: m.height };
+    } catch {
+      /* CORS ou réseau : on passe aux valeurs par défaut */
+    }
+    return { w: 1600, h: 900 };
   }
-  
+
+  async function setup(root: HTMLElement) {
+    const box = root.querySelector<HTMLElement>(".geogebra-scale");
+    const container = root.querySelector<HTMLElement>(".geogebra-container");
+    if (!box || !container) return;
+
+    const { w: aw, h: ah } = await authoredSize(container);
+    // sans hauteur définie par le parent, le composant garde le ratio d'origine
+    root.style.setProperty("--ggb-ratio", `${aw} / ${ah}`);
+
+    let api: any = null;
+
+    // Boîte « contain » : plus grand rectangle au ratio d'origine qui tient dans
+    // le parent. L'applet reste à sa taille d'origine (boutons, origine des axes
+    // et vue exactement comme dans la ressource) et GeoGebra le met à l'échelle
+    // de la largeur de la boîte.
+    const fit = () => {
+      const W = root.clientWidth;
+      const H = root.clientHeight;
+      if (!W || !H) return; // slide masquée : on attend
+      const k = Math.min(W / aw, H / ah);
+      box.style.width = `${Math.floor(aw * k)}px`;
+      box.style.height = `${Math.floor(ah * k)}px`;
+      api?.recalculateEnvironments?.();
+      window.dispatchEvent(new Event("resize")); // relance le calcul d'échelle de GeoGebra
+    };
+
+    fit(); // boîte dimensionnée avant le chargement
+
+    const applet = new w.GGBApplet(
+      {
+        appName: container.dataset.appName ?? "classic",
+        material_id: container.dataset.materialId,
+
+        width: aw,
+        height: ah,
+        scaleContainerClass: "geogebra-scale",
+        allowUpscale: true, // peut dépasser la taille d'origine (plein écran)
+
+        showToolBar: false, // attention à la casse : showToolBar, pas showToolbar
+        showAlgebraInput: false,
+        showMenuBar: false,
+        showResetIcon: false,
+        showFullscreenButton: false,
+        enableRightClick: false,
+        enableShiftDragZoom: true,
+//Mettre des points cache pour définir la taille si il y a des composants caché !
+        appletOnLoad(a: any) {
+  api = a;
+
+  if (container.dataset.showAll) {
+    const hidden: string[] = [];
+
+    for (let i = 0; i < a.getObjectNumber(); i++) {
+      const name = a.getObjectName(i);
+      if (!name) continue;
+
+      if (!a.getVisible(name)) {
+        hidden.push(name);
+        a.setVisible(name, true);
+      }
+    }
+
+    a.showAllObjects();
+
+    hidden.forEach((name) => a.setVisible(name, false));
+  }
+
+  fit();
+},
+      },
+      true,
+    );
+
+    applet.inject(container.id);
+
+    // redimensionnement, plein écran, changement de --fit...
+    let raf = 0;
+    new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    }).observe(root);
+  }
+
+  async function init() {
+    await loadGeoGebra();
+    document.querySelectorAll<HTMLElement>(".geogebra").forEach(setup);
+  }
+document.addEventListener("pointerup", (event) => {
+  if (event.button !== 0) return
+
+  requestAnimationFrame(() => {
+    const active = document.activeElement as HTMLElement | null
+    active?.blur()
+  })
+})
+  init();
+</script>
+
+<style>
+  /* Le composant n'impose aucune largeur : il remplit son parent.
+     - parent avec une hauteur définie  -> height: 100% s'applique
+     - sinon height: 100% vaut « auto » et aspect-ratio prend le relais */
+  .geogebra {
+    position: relative;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 100%;
+    height: 100%;
+    aspect-ratio: var(--ggb-ratio, 16 / 9);
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+  }
+
+  /* Taille fixée en JS : la taille de l'applet n'influence jamais le parent */
+  .geogebra-scale {
+    position: relative;
+    flex: none;
+
+    overflow: hidden;
+  }
+
+  /* Taille d'origine : fixée par l'applet, puis mise à l'échelle par GeoGebra */
+  .geogebra-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
 </style>

@@ -1,7 +1,12 @@
 ---
+interface Props {
+  noCounter?: boolean
+}
+
+const { noCounter = false } = Astro.props
 ---
 
-<div class="slide">
+<div class:list={["slide", { "no-counter": noCounter }]}>
   <div class="slide-content">
     <slot />
   </div>
