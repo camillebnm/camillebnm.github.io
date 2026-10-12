@@ -16,14 +16,33 @@
  *   Toutes les frames subissent la même transformation : le mouvement entre frames est conservé.
  *   vColor vaut les couleurs des sommets du PLY s'il y en a, sinon vec3(1.0).
  *
+ * timeline="mvt_diffeo.ts" (fichier dans src/shaders/) : module TypeScript exportant par défaut
+ *   une fonction `Timeline` appelée à chaque frame. Elle reçoit { time, dt, clickCount, clickTimes,
+ *   aspect, resolution } et renvoie { texts, uniforms } :
+ *     - texts[i]    : état du i-ème textBlock ({ x, y } en %, opacity, scale, visible, text)
+ *     - uniforms    : uniforms supplémentaires envoyés au shader (number | [x,y] | [x,y,z] | [x,y,z,w])
+ *
  * Les uniforms iResolution, iTime, iTimeDelta, iFrame, iMouse sont déclarés
  * automatiquement : ne pas les redéclarer dans les shaders.
+ * Les clics sur le canvas sont comptés (u_clickCount / u_clickTimes), même sans iMouse.
  */
+interface TextBlock {
+  text: string;
+  color?: string;
+  size?: number;
+  x: number;
+  y: number;
+  /** Le texte apparaît à partir du n-ième clic */
+  clicks?: number;
+}
+
 interface Props {
   /** Chemin du fragment shader relatif à src/shaders/ */
   shader: string;
   /** Vertex shader optionnel (mode mesh uniquement), relatif à src/shaders/ */
   vertex?: string;
+  /** Module de timeline (.ts) relatif à src/shaders/ : pilote les textes et des uniforms */
+  timeline?: string;
   mode?: 'image' | 'mesh';
   geometry?: 'sphere' | 'torus' | 'box' | 'plane';
   /** Maillage PLY (triangles) relatif à src/meshes/, ou séquence de PLY lue en aller-retour (remplace `geometry`) */
@@ -34,7 +53,7 @@ interface Props {
   initialZoom?: number;
   /** OrbitControls (mode mesh). Actifs par défaut en mesh. */
   controls?: boolean;
-  /** Force le rendu continu (true) ou à la demande (false). Par défaut : auto-détecté (iTime/iFrame utilisés). */
+  /** Force le rendu continu (true) ou à la demande (false). Par défaut : auto-détecté (iTime/iFrame utilisés, timeline). */
   animated?: boolean;
   /** Bouton plein écran */
   fullscreen?: boolean;
@@ -47,6 +66,7 @@ interface Props {
 const {
   shader,
   vertex,
+  timeline,
   mesh,
   mode = mesh ? 'mesh' : 'image',
   geometry = 'sphere',
@@ -54,7 +74,7 @@ const {
   animated,
   fullscreen = true,
   maxPixelRatio = 2,
-  fps = 10,
+  fps=10,
   initialZoom = 1.15,
   class: className = '',
   textBlocks = [],
@@ -76,6 +96,12 @@ const meshModules = import.meta.glob('/src/meshes/**/*.ply', {
   import: 'default',
 }) as Record<string, () => Promise<string>>;
 
+// Vérification (build) que la timeline existe ; le module lui-même est chargé côté client.
+const timelineModules = import.meta.glob(['/src/shaders/**/*.ts', '!/src/shaders/**/lib/**']);
+if (timeline && !timelineModules[`/src/shaders/${timeline}`]) {
+  throw new Error(`[ShaderCanvas] Timeline introuvable : src/shaders/${timeline}`);
+}
+
 const frag = await load(shader);
 const vert = vertex ? await load(vertex) : null;
 
@@ -93,6 +119,7 @@ const meshUrls: string[] = await Promise.all(
 const config = JSON.stringify({
   frag,
   vert,
+  timeline: timeline ?? null,
   mode,
   geometry,
   meshUrls,
@@ -101,21 +128,10 @@ const config = JSON.stringify({
   controls,
   animated: animated ?? null,
   maxPixelRatio,
+  textPositions: textBlocks.map((block) => [block.x / 100, block.y / 100]),
+  textBlocks,
 }).replace(/</g, '\\u003c');
-
-
-interface TextBlock {
-  text: string
-  color?: string
-  size?: number
-  x: number
-  y: number
-  clicks?: number
-}
-
 ---
-
-
 
 <div class:list={['shader-canvas', className]} data-shader-canvas>
   <div class="sc-view"></div>
@@ -146,22 +162,6 @@ interface TextBlock {
 </div>
 
 <style>
-.shader-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.shader-text {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  white-space: pre-wrap;
-}
-
-.shader-text[hidden] {
-  display: none;
-}
-
   .shader-canvas {
     position: relative;
     width: 100%;
@@ -172,6 +172,20 @@ interface TextBlock {
   .sc-view {
     position: absolute;
     inset: 0;
+  }
+  .shader-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .shader-text {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    white-space: pre-wrap;
+    will-change: left, top, transform, opacity;
+  }
+  .shader-text[hidden] {
+    display: none;
   }
   .shader-canvas:fullscreen {
     width: 100vw;
@@ -244,9 +258,11 @@ interface TextBlock {
     Box3,
     type BufferGeometry,
   } from 'three';
+  import renderMathInElement from 'katex/contrib/auto-render';
+  import 'katex/dist/katex.min.css';
+  import type { Timeline, TextState, UniformValue } from '/src/shaders/lib/types';
 
-import renderMathInElement from 'katex/contrib/auto-render'
-import 'katex/dist/katex.min.css'
+  const MAX_CLICKS = 100;
 
   const PRELUDE = `uniform vec3 iResolution;
 uniform float iTime;
@@ -286,6 +302,12 @@ void main() {
     box: () => new BoxGeometry(1.4, 1.4, 1.4, 32, 32, 32),
     plane: () => new PlaneGeometry(2, 2, 64, 64),
   };
+
+  // Modules de timeline : chargés à la demande (le nom vient de la config du composant).
+  const timelineModules = import.meta.glob(['/src/shaders/**/*.ts', '!/src/shaders/**/lib/**']) as Record<
+    string,
+    () => Promise<{ default: Timeline }>
+  >;
 
   // Charge une ou plusieurs frames PLY (triangles). Toutes subissent la même transformation :
   // centrées sur la boîte englobante globale puis normalisées dans la sphère unité,
@@ -332,15 +354,35 @@ void main() {
       errBox.hidden = false;
       console.error('[ShaderCanvas]', msg);
     };
-	root.querySelectorAll<HTMLElement>('.shader-text').forEach((el) => {
-	  renderMathInElement(el, {
-	    delimiters: [
-	      { left: '$$', right: '$$', display: true },
-	      { left: '$', right: '$', display: false },
-	    ],
-	    throwOnError: false,
-	  })
-	})
+
+    // --- Textes (KaTeX rendu une seule fois) ---
+    const textEls = Array.from(root.querySelectorAll<HTMLElement>('.shader-text'));
+    const showAfter = textEls.map((el) => Number(el.dataset.showAfterClick) || 0);
+    textEls.forEach((el) => {
+      renderMathInElement(el, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+      });
+    });
+
+    // --- Timeline ---
+    let timeline: Timeline | null = null;
+    if (cfg.timeline) {
+      const loader = timelineModules[`/src/shaders/${cfg.timeline}`];
+      try {
+        if (!loader) throw new Error(`Timeline introuvable : ${cfg.timeline}`);
+        timeline = (await loader()).default;
+        if (typeof timeline !== 'function') throw new Error('La timeline doit exporter une fonction par défaut.');
+      } catch (e) {
+        fail(`Impossible de charger la timeline : ${e instanceof Error ? e.message : e}`);
+        return;
+      }
+    }
+
+    // --- Maillages PLY ---
     let plyGeometries: BufferGeometry[] = [];
     if (cfg.mode === 'mesh' && cfg.meshUrls?.length) {
       try {
@@ -377,28 +419,32 @@ void main() {
     const usesTime = /\b(iTime|iTimeDelta|iFrame)\b/.test(allSrc);
     const usesMouse = /\biMouse\b/.test(allSrc);
     const frameCount: number = cfg.meshUrls?.length ?? 0;
-    const animated: boolean = cfg.animated ?? (usesTime || frameCount > 1);
+    const animated: boolean = cfg.animated ?? (usesTime || frameCount > 1 || !!timeline);
+    const textPositions = (cfg.textPositions ?? []).map(([x, y]: [number, number]) => new Vector2(x, y));
 
-    const uniforms = {
+    const uniforms: Record<string, { value: any }> = {
       iResolution: { value: new Vector3(1, 1, 1) },
       iTime: { value: 0 },
       iTimeDelta: { value: 0 },
       iFrame: { value: 0 },
       iMouse: { value: new Vector4(0, 0, 0, 0) },
       u_clickCount: { value: 0 },
-      u_clickTimes: { value: new Float32Array(100) },
+      u_clickTimes: { value: new Float32Array(MAX_CLICKS) },
+      u_textPositions: { value: textPositions },
     };
-let clickCount = 0;
-const clickTimes: number[] = [];
     const hasMain = /void\s+main\s*\(/.test(cfg.frag);
 
+    const textCount = Math.max(1, textPositions.length);
+    const textPrelude = `
+uniform vec2 u_textPositions[${textCount}];
+`;
 
-const material = new ShaderMaterial({
-  uniforms,
-  vertexColors: !!plyGeometries[0]?.getAttribute('color'),
-  vertexShader: PRELUDE + (isMesh ? (cfg.vert ?? MESH_VERT) : QUAD_VERT),
-  fragmentShader: PRELUDE + cfg.frag + (hasMain ? '' : IMAGE_MAIN),
-})
+    const material = new ShaderMaterial({
+      uniforms,
+      vertexColors: !!plyGeometries[0]?.getAttribute('color'),
+      vertexShader: PRELUDE + (isMesh ? (cfg.vert ?? MESH_VERT) : QUAD_VERT),
+      fragmentShader: PRELUDE + textPrelude + cfg.frag + (hasMain ? '' : IMAGE_MAIN),
+    });
     // Les numéros de ligne du log sont décalés par le prélude et le préambule de Three.
     renderer.debug.onShaderError = (gl, _program, vs, fs) => {
       const log =
@@ -424,14 +470,18 @@ const material = new ShaderMaterial({
     mesh.frustumCulled = false;
     scene.add(mesh);
 
-    // --- Boucle de rendu : continue si animé, sinon à la demande ---
+    // --- État de la boucle de rendu ---
     let controls: any = null;
     let visible = true;
     let disposed = false;
     let raf = 0;
     let last = performance.now();
     let time = 0;
+    let dtLast = 0;
     let frame = 0;
+    let aspect = 1;
+    let clickCount = 0;
+    const size = new Vector2();
 
     // Lecture de séquence en aller-retour (comme PlyVideo)
     let seqIndex = 0;
@@ -439,10 +489,78 @@ const material = new ShaderMaterial({
     let seqAcc = 0;
     const seqStep = 1 / (cfg.fps > 0 ? cfg.fps : 10);
 
+    // --- Textes : visibilité par clics + état piloté par la timeline ---
+    const applyTexts = (states?: (TextState | undefined)[]) => {
+      textEls.forEach((el, i) => {
+        const s = states?.[i];
+        el.hidden = !(s?.visible ?? clickCount >= showAfter[i]);
+        if (!s) return;
+        if (s.x !== undefined) el.style.left = `${s.x}%`;
+        if (s.y !== undefined) el.style.top = `${s.y}%`;
+        if (s.opacity !== undefined) el.style.opacity = String(s.opacity);
+	if (s.scale !== undefined || s.rotate !== undefined) {
+	  el.style.transform = `translate(-50%, -50%) rotate(${s.rotate ?? 0}deg) scale(${s.scale ?? 1})`;
+	}
+        if (s.text !== undefined && el.dataset.rawText !== s.text) {
+          el.dataset.rawText = s.text;
+          el.textContent = s.text;
+          renderMathInElement(el, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false },
+            ],
+            throwOnError: false,
+          });
+        }
+      });
+    };
+
+    // --- Uniforms dynamiques fournis par la timeline ---
+    const setUniform = (name: string, v: UniformValue) => {
+      let u = uniforms[name];
+      if (!u) {
+        const init =
+          typeof v === 'number'
+            ? 0
+            : v.length === 2
+              ? new Vector2()
+              : v.length === 3
+                ? new Vector3()
+                : new Vector4();
+        u = uniforms[name] = { value: init };
+      }
+      if (typeof v === 'number') u.value = v;
+      else u.value.fromArray(v);
+    };
+
+    const applyTimeline = () => {
+      if (!timeline) {
+        applyTexts();
+        return;
+      }
+      try {
+        const out = timeline({
+          time,
+          dt: dtLast,
+          clickCount,
+          clickTimes: uniforms.u_clickTimes.value as Float32Array,
+          aspect,
+          resolution: [size.x, size.y],
+          textBlocks: cfg.textBlocks ?? [],
+        });
+        for (const [name, v] of Object.entries(out.uniforms ?? {})) setUniform(name, v);
+        applyTexts(out.texts);
+      } catch (e) {
+        timeline = null;
+        fail(`Erreur dans la timeline : ${e instanceof Error ? e.message : e}`);
+      }
+    };
+
     const render = () => {
       const now = performance.now();
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
+      dtLast = dt;
       time += dt;
       if (geometries.length > 1) {
         seqAcc += dt;
@@ -464,6 +582,7 @@ const material = new ShaderMaterial({
       uniforms.iTime.value = time;
       uniforms.iTimeDelta.value = dt;
       uniforms.iFrame.value = frame++;
+      applyTimeline();
       controls?.update();
       renderer.render(scene, camera);
     };
@@ -480,17 +599,17 @@ const material = new ShaderMaterial({
     };
 
     // --- Taille : suit le div parent ---
-    const size = new Vector2();
     let fitted = false;
     const resize = () => {
       const w = Math.max(1, view.clientWidth);
       const h = Math.max(1, view.clientHeight);
+      aspect = w / h;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.maxPixelRatio));
       renderer.setSize(w, h, false);
       renderer.getDrawingBufferSize(size);
       uniforms.iResolution.value.set(size.x, size.y, 1);
       if (camera instanceof PerspectiveCamera) {
-        camera.aspect = w / h;
+        camera.aspect = aspect;
         // Cadrage initial (une seule fois) : le maillage est dans la sphère unité
         if (!fitted && view.clientWidth > 0 && view.clientHeight > 0) {
           fitted = true;
@@ -530,54 +649,63 @@ const material = new ShaderMaterial({
       canvas.style.touchAction = 'none';
     }
 
-    // --- iMouse au format Shadertoy (pixels du drawing buffer, y vers le haut) ---
-    if (usesMouse) {
-      canvas.style.touchAction = 'none';
-      const m = uniforms.iMouse.value;
-      let down = false;
-      const pos = (e: PointerEvent): [number, number] => {
-        const r = canvas.getBoundingClientRect();
-        renderer.getDrawingBufferSize(size);
-        return [
-          ((e.clientX - r.left) * size.x) / r.width,
-          size.y - ((e.clientY - r.top) * size.y) / r.height,
-        ];
-      };
-      canvas.addEventListener('pointerdown', (e) => {
-      
-  clickCount = (clickCount + 1)
-  material.uniforms.u_clickCount.value = clickCount
- root.querySelectorAll<HTMLElement>(".shader-text").forEach((el) => {
-  el.hidden = clickCount < Number(el.dataset.showAfterClick)
-})
+    // --- Pointeur : comptage des clics (toujours) + iMouse Shadertoy (si utilisé) ---
+    const pos = (e: PointerEvent): [number, number] => {
+      const r = canvas.getBoundingClientRect();
+      renderer.getDrawingBufferSize(size);
+      return [
+        ((e.clientX - r.left) * size.x) / r.width,
+        size.y - ((e.clientY - r.top) * size.y) / r.height,
+      ];
+    };
+    const m = uniforms.iMouse.value as Vector4;
+    let down = false;
+    let downX = 0;
+    let downY = 0;
+    let moved = false;
 
-  if (clickCount <= 100) {
-  uniforms.u_clickTimes.value[clickCount - 1] = time;
-}
-
-  const [x, y] = pos(e)
-  down = true
-  m.set(x, y, x, y)
-  canvas.setPointerCapture(e.pointerId)
-  requestRender()
-});
-      canvas.addEventListener('pointermove', (e) => {
-        if (!down) return;
+    const onDown = (e: PointerEvent) => {
+      down = true;
+      moved = false;
+      downX = e.clientX;
+      downY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+      if (usesMouse) {
+        const [x, y] = pos(e);
+        m.set(x, y, x, y);
+        requestRender();
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!down) return;
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) moved = true;
+      if (usesMouse) {
         const [x, y] = pos(e);
         m.x = x;
         m.y = y;
         requestRender();
-      });
-      const up = () => {
-        if (!down) return;
-        down = false;
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!down) return;
+      down = false;
+      if (usesMouse) {
         m.z = -Math.abs(m.z);
         m.w = -Math.abs(m.w);
-        requestRender();
-      };
-      canvas.addEventListener('pointerup', up);
-      canvas.addEventListener('pointercancel', up);
-    }
+      }
+      // Un clic = pas de glisser (sinon c'est une rotation OrbitControls / un drag)
+      if (e.type === 'pointerup' && !moved && clickCount < MAX_CLICKS) {
+        (uniforms.u_clickTimes.value as Float32Array)[clickCount] = time;
+        clickCount++;
+        uniforms.u_clickCount.value = clickCount;
+      }
+      requestRender();
+    };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onUp);
+    if (usesMouse || timeline || textEls.length) canvas.style.touchAction = 'none';
 
     // --- Plein écran ---
     if (fsBtn) {
@@ -593,6 +721,10 @@ const material = new ShaderMaterial({
       cancelAnimationFrame(raf);
       ro.disconnect();
       io.disconnect();
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onUp);
       controls?.dispose();
       geometries.forEach((g) => g.dispose());
       material.dispose();
