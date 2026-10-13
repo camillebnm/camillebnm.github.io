@@ -1,0 +1,220 @@
+---
+/**
+ * SvgImg : insère un SVG « LaTeX brut » (texte contenant $...$, comme produit
+ * par Inkscape en mode LaTeX) en rendant les formules avec KaTeX.
+ *
+ * Le SVG est lu dans public/, ses <text> contenant du `$...$` sont remplacés
+ * par des <foreignObject> rendus avec KaTeX, puis le tout est inliné dans la
+ * page (nécessaire pour que le CSS et les polices de KaTeX s'appliquent).
+ *
+ * Utilisation :
+ *   <SvgImg src="/images/presentations/PEPR/svg/coupling_layers.svg" alt="..." style="width: 40%;" />
+ *
+ * Props :
+ *   src       chemin du SVG, relatif à public/
+ *   alt       texte alternatif
+ *   baseline  position de la ligne de base dans la boîte de texte, en fraction
+ *             de la taille de police (défaut 0.85) : à ajuster si les formules
+ *             sont décalées verticalement
+ *   macros    macros KaTeX supplémentaires, ex. { "\\X": "\\mathbf{X}" }
+ *   ...       le reste (style, class, width...) va sur le <svg>
+ *
+ * Dépendance : katex (déjà là si tes formules MDX sont rendues avec KaTeX).
+ * Le CSS de KaTeX doit être chargé sur la page.
+ */
+import fs from "node:fs";
+import path from "node:path";
+import katex from "katex";
+
+interface Props {
+  src: string;
+  alt?: string;
+  baseline?: number;
+  macros?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+const { src, alt = "", baseline = 0.85, macros = {}, ...rest } = Astro.props;
+
+// Macros du préambule Beamer
+const MACROS: Record<string, string> = {
+  "\\R": "\\mathbb{R}",
+  "\\cS": "\\mathcal{S}",
+  "\\pS": "\\partial\\mathcal{S}",
+  "\\cJ": "\\mathcal{J}",
+  "\\f": "{\\color{orange} f}",
+  "\\V": "{\\color{red}\\mathbf{V}}",
+  ...macros,
+};
+
+// --- utilitaires ---------------------------------------------------------------
+
+const esc = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const unesc = (s: string) =>
+  s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;|&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+
+const attr = (s: string, name: string): string | undefined =>
+  s.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*"([^"]*)"`))?.[1];
+
+const styleProp = (s: string | undefined, name: string): string | undefined =>
+  s?.match(new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`))?.[1]?.trim();
+
+const num = (v?: string): number | undefined => {
+  if (v === undefined) return undefined;
+  const n = parseFloat(v.trim().split(/[\s,]+/)[0]);
+  return Number.isNaN(n) ? undefined : n;
+};
+
+// --- rendu d'une chaîne mêlant texte et $maths$ ---------------------------------
+
+function renderMixed(content: string): string {
+  const parts: string[] = [];
+  let last = 0;
+  for (const m of content.matchAll(/\$\$([\s\S]+?)\$\$|\$([\s\S]+?)\$/g)) {
+    parts.push(esc(content.slice(last, m.index)));
+    parts.push(
+      katex.renderToString((m[1] ?? m[2]).trim(), {
+        throwOnError: false,
+        output: "html",
+        macros: { ...MACROS }, // copie : KaTeX modifie l'objet qu'on lui passe
+      }),
+    );
+    last = (m.index as number) + m[0].length;
+  }
+  parts.push(esc(content.slice(last)));
+  return parts.join("");
+}
+
+// --- conversion d'un élément <text> --------------------------------------------
+
+function convertText(full: string, tAttrs: string, inner: string): string {
+  const plain = unesc(inner.replace(/<[^>]+>/g, ""));
+  if (!plain.includes("$")) return full; // pas de LaTeX : on laisse tel quel
+
+  const tStyle = attr(tAttrs, "style");
+  const tspans = [...inner.matchAll(/<tspan\b([^>]*)>([\s\S]*?)<\/tspan>/g)];
+  const pieces = tspans.length
+    ? tspans.map((m) => ({ attrs: m[1], body: m[2] }))
+    : [{ attrs: "", body: inner }];
+
+  const out = pieces
+    .map((p) => {
+      const pStyle = attr(p.attrs, "style");
+      const prop = (name: string) =>
+        styleProp(pStyle, name) ??
+        attr(p.attrs, name) ??
+        styleProp(tStyle, name) ??
+        attr(tAttrs, name);
+
+      const content = unesc(p.body.replace(/<[^>]+>/g, ""))
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!content) return "";
+
+      const x = num(attr(p.attrs, "x") ?? attr(tAttrs, "x")) ?? 0;
+      const y = num(attr(p.attrs, "y") ?? attr(tAttrs, "y")) ?? 0;
+      const fs = parseFloat(prop("font-size") ?? "12") || 12;
+      const anchor = prop("text-anchor") ?? "start";
+      const fill = prop("fill");
+
+      const W = fs * 80; // large : le contenu déborde librement (overflow visible)
+      const H = fs * 3;
+      const x0 = anchor === "middle" ? x - W / 2 : anchor === "end" ? x - W : x;
+      const align =
+        anchor === "middle" ? "center" : anchor === "end" ? "right" : "left";
+      const color = fill && fill !== "none" ? `color:${fill};` : "";
+
+      return (
+        `<foreignObject x="${x0}" y="${y - fs * baseline}" width="${W}" height="${H}" style="overflow:visible">` +
+        `<div class="svgimg-tex" style="width:100%;font-size:${fs}px;line-height:1;white-space:nowrap;text-align:${align};${color}">` +
+        renderMixed(content) +
+        `</div></foreignObject>`
+      );
+    })
+    .join("");
+
+  const transform = attr(tAttrs, "transform");
+  return transform ? `<g transform="${transform}">${out}</g>` : `<g>${out}</g>`;
+}
+
+// --- lecture et transformation du SVG --------------------------------------------
+
+const svgPath = path.join(process.cwd(), "public", src.replace(/^\/+/, ""));
+let svg: string;
+try {
+  svg = fs.readFileSync(svgPath, "utf8");
+} catch (err) {
+  throw new Error(
+    `SvgImg : lecture impossible (${(err as NodeJS.ErrnoException).code}) : ${svgPath}`,
+  );
+}
+
+// nettoyage : prologue, doctype, commentaires, métadonnées Inkscape
+svg = svg
+  .replace(/<\?xml[\s\S]*?\?>/g, "")
+  .replace(/<!DOCTYPE[\s\S]*?>/gi, "")
+  .replace(/<!--[\s\S]*?-->/g, "")
+  .replace(/<metadata[\s\S]*?<\/metadata>/g, "")
+  .replace(/<sodipodi:namedview[\s\S]*?(?:\/>|<\/sodipodi:namedview>)/g, "");
+
+// ids uniques : le même SVG peut être inliné plusieurs fois dans une page
+const g = globalThis as typeof globalThis & { __svgImgCount?: number };
+const uid = (g.__svgImgCount = (g.__svgImgCount ?? 0) + 1);
+for (const id of new Set([...svg.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]))) {
+  const e = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  svg = svg
+    .replace(new RegExp(`id="${e}"`, "g"), `id="${id}-${uid}"`)
+    .replace(new RegExp(`url\\(#${e}\\)`, "g"), `url(#${id}-${uid})`)
+    .replace(new RegExp(`href="#${e}"`, "g"), `href="#${id}-${uid}"`);
+}
+
+// formules
+svg = svg.replace(/<text\b([^>]*)>([\s\S]*?)<\/text>/g, (full, a, inner) =>
+  convertText(full, a, inner),
+);
+
+// balise <svg> racine : se comporte comme un <img> (taille pilotée par le CSS)
+svg = svg.replace(/<svg\b([^>]*)>/, (_m, a: string) => {
+  const rawW = attr(a, "width");
+  const rawH = attr(a, "height");
+  const w = rawW && !rawW.includes("%") ? num(rawW) : undefined;
+  const h = rawH && !rawH.includes("%") ? num(rawH) : undefined;
+  const oldStyle = attr(a, "style");
+
+  let attrs = a
+    .replace(/\swidth="[^"]*"/, "")
+    .replace(/\sheight="[^"]*"/, "")
+    .replace(/\sstyle="[^"]*"/, "");
+  if (!/viewBox\s*=/.test(a) && w && h) attrs += ` viewBox="0 0 ${w} ${h}"`;
+
+  const { style, ...others } = rest as Record<string, unknown>;
+  const extra = Object.entries(others)
+    .map(([k, v]) =>
+      v === undefined || v === false ? "" : ` ${k}="${esc(String(v))}"`,
+    )
+    .join("");
+  const st = `height:auto;${oldStyle ? oldStyle + ";" : ""}${style ?? ""}`;
+
+  return `<svg${attrs} role="img" aria-label="${esc(alt)}"${extra} style="${esc(st)}">`;
+});
+---
+
+<Fragment set:html={svg} />
+
+<style is:global>
+  /* KaTeX s'aligne sur la taille de police du SVG (et non sur celle des slides) */
+  div.svgimg-tex .katex {
+    font-size: 1em !important;
+  }
+</style>

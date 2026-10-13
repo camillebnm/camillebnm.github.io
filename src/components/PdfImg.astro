@@ -1,0 +1,113 @@
+---
+/**
+ * PdfImg : affiche une page d'un PDF comme une image.
+ *
+ * Le PDF est rasterisé en PNG au moment du rendu (build ou dev) avec mupdf
+ * (WebAssembly, aucune dépendance système), puis inséré en data URI : rien à
+ * servir ni à stocker dans public/. Un cache mémoire + disque évite de refaire
+ * la conversion à chaque utilisation ou à chaque rebuild.
+ *
+ * Utilisation :
+ *   <PdfImg src="/images/PEPR/figures/cover.pdf" alt="Cover" style="width: 60%;" />
+ *   <PdfImg src="/images/PEPR/figures/doc.pdf" page={2} scale={4} />
+ *
+ * Props :
+ *   src    chemin du PDF, relatif à public/ (comme pour un <img>)
+ *   page   numéro de la page, à partir de 0 (défaut : 0)
+ *   scale  facteur de rendu, 1 = 72 dpi (défaut : 3, soit ~216 dpi)
+ *   ...    tout le reste (alt, style, class, width, ...) va sur le <img>
+ *
+ * Dépendance : npm install mupdf
+ */
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+
+interface Props {
+  src: string;
+  page?: number;
+  scale?: number;
+  [key: string]: unknown;
+}
+
+const { src, page = 0, scale = 3, alt = "", ...rest } = Astro.props;
+
+// --- cache (mémoire + disque) -------------------------------------------------
+
+const g = globalThis as typeof globalThis & {
+  __pdfImgCache?: Map<string, string>;
+};
+const memCache = (g.__pdfImgCache ??= new Map<string, string>());
+
+const pdfPath = path.join(process.cwd(), "public", src.replace(/^\/+/, ""));
+let bytes: Buffer;
+try {
+  bytes = fs.readFileSync(pdfPath);
+} catch (err) {
+  const code = (err as NodeJS.ErrnoException).code;
+
+  // diagnostic : remonte jusqu'au plus proche dossier existant et liste son contenu
+  let dir = path.dirname(pdfPath);
+  while (dir !== path.dirname(dir) && !fs.existsSync(dir)) {
+    dir = path.dirname(dir);
+  }
+  let listing = "(illisible)";
+  try {
+    listing = fs
+      .readdirSync(dir)
+      .map((n) => JSON.stringify(n))
+      .join(", ");
+  } catch {}
+
+  throw new Error(
+    `PdfImg : lecture impossible (${code}) : ${pdfPath}\n` +
+      `Plus proche dossier existant : ${dir}\n` +
+      `Contenu : ${listing}`,
+  );
+}
+const key = crypto
+  .createHash("sha1")
+  .update(bytes)
+  .update(`|${page}|${scale}`)
+  .digest("hex");
+
+const cacheDir = path.join(process.cwd(), "node_modules", ".cache", "pdfimg");
+const cacheFile = path.join(cacheDir, `${key}.png`);
+
+let dataUri = memCache.get(key);
+
+if (!dataUri) {
+  let png: Uint8Array;
+
+  if (fs.existsSync(cacheFile)) {
+    png = fs.readFileSync(cacheFile);
+  } else {
+    const mupdf = await import("mupdf");
+    const doc = mupdf.Document.openDocument(bytes, "application/pdf");
+
+    if (page < 0 || page >= doc.countPages()) {
+      throw new Error(
+        `PdfImg : page ${page} inexistante dans ${src} (${doc.countPages()} pages)`,
+      );
+    }
+
+    const pixmap = doc
+      .loadPage(page)
+      .toPixmap(
+        mupdf.Matrix.scale(scale, scale),
+        mupdf.ColorSpace.DeviceRGB,
+        true, // fond transparent
+        true,
+      );
+    png = pixmap.asPNG();
+
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(cacheFile, png);
+  }
+
+  dataUri = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+  memCache.set(key, dataUri);
+}
+---
+
+<img src={dataUri} alt={alt as string} {...rest} />

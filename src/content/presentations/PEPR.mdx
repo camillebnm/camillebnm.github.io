@@ -1,0 +1,769 @@
+---
+title: "Journées du PEPR EDP-IA : Explicit flows for implicit surfaces"
+description: "Explicit flows for implicit surfaces, SIGGRAPH 2026"
+date: 2026-10-14
+author: "Camille Buonomo, Julie Digne, Raphaëlle Chaine"
+draft: false
+---
+
+import Presentation from "../../components/Presentation.astro";
+import Slide from "../../components/Slide.astro";
+import PdfImg from "../../components/PdfImg.astro";
+import SvgImg from "../../components/SvgImg.astro";
+import PlyVideo from "../../components/PlyVideo.astro";
+import ShaderCanvas from "../../components/ShaderCanvas.astro";
+
+export const base = "/images/presentations/PEPR/finalrenders/direct_morphing/nous";
+export const ids = ["000", "005", "010", "015", "020", "023"];
+export const pairs = ["armadillo-blob", "bunny-colonne", "bunny-witch", "subm-horse"];
+export const nfgp = ["1", "2", "3", "4", "5", "6", "7", "25", "50", "100"];
+export const ours = ["1", "2", "3", "4", "5", "6", "10", "10", "10", "10"];
+export const times = ["6min", "12min", "18min", "24min", "30min", "36min", "60min", "150min", "300min", "600min"];
+
+<Presentation>
+
+
+<Slide noCounter>
+
+# Explicit flows for implicit surfaces
+<img
+  src="/images/presentations/PEPR/figures/img_tease.png"
+  alt="Teaser"
+  style="width: 70%; margin: 0 auto; display: block;"
+/>
+<div style="display: flex; align-items: center; justify-content: center; gap: 1.5rem;">
+  <img
+    src="/images/presentations/PEPR/figures/logo.png"
+    alt="LIRIS, CNRS, Université Lyon 1"
+    style="width: 30%; height: auto; margin: 0;"
+  />
+  <div style="text-align: left;">
+    <p>Camille Buonomo, Julie Digne, Raphaëlle Chaine</p>
+    <p>LIRIS, CNRS, Université Lyon 1</p>
+  </div>
+</div>
+</Slide>
+
+
+<Slide>
+# Introduction
+
+<img
+  src="/images/presentations/PEPR/figures/img_tease.png"
+  alt="Teaser"
+  style="width: 55%; margin: 0 auto; display: block;"
+/>
+
+What is a *good* morphing?
+
+- Reversible: consistent backward and forward trajectories
+- Manifold: no self-intersection, flips, ...
+- Constant topology
+  - All properties of a flow!
+
+</Slide>
+
+
+<Slide>
+# Flows
+
+> **Definition.** Let $d \in \mathbb{N}$. A mapping $\phi : \mathbb{R}^d \times \mathbb{R} \rightarrow \mathbb{R}^d$, $(x, t) \mapsto \phi(x, t)$ is a flow iff:
+>
+> - $\phi(x, 0) = x$
+> - $\phi(\phi(x, t), s) = \phi(x, t+s)$
+
+</Slide>
+
+
+<Slide>
+# Flows
+
+> **Definition.** Let $d \in \mathbb{N}$. A mapping $\phi : \mathbb{R}^d \times \mathbb{R} \rightarrow \mathbb{R}^d$, $(x, t) \mapsto \phi(x, t)$ is a flow iff:
+>
+> - $\phi(x, 0) = x$
+> - $\phi(\phi(x, t), s) = \phi(x, t+s)$
+
+> **Properties.**
+>
+> - Invertibility: $\phi^{-1}(x, t) = \phi(x, -t)$
+> - Non-intersecting trajectories
+> - For a fixed time $t$, $\phi(\cdot, t)$ is a diffeomorphism
+> - Topology preserving
+
+</Slide>
+
+
+<Slide>
+# Lifting to Space-Time
+
+> **Limitations.** A flow $\phi$ in the ambient space $\mathbb{R}^d$ cannot represent a linear transformation
+
+  <div style={{ height: '70%' }}>
+<ShaderCanvas
+  shader="PEPR/carre.frag"
+/>
+  </div>
+
+</Slide>
+
+
+<Slide>
+# Lifting to Space-Time
+
+> **Limitations.** A flow $\phi$ in the ambient space $\mathbb{R}^d$ cannot represent a linear transformation
+
+- Lifting with a time dimension: $\mathbb{R}^d \times \mathbb{R}$
+
+$$
+\begin{gathered}
+\phi((\textcolor{#8A2BE2}{x}, \textcolor{#FF4500}{t_0}), \textcolor{#228B22}{t}) = (\Phi(\textcolor{#8A2BE2}{x}, \textcolor{#228B22}{t}, \textcolor{#FF4500}{t_0}), \textcolor{#CC5500}{t+t_0}) \\
+\textcolor{#8A2BE2}{x: \text{initial space position}} \quad
+\textcolor{#FF4500}{t_0: \text{starting time}} \quad
+\textcolor{#228B22}{t: \text{duration of motion}} \quad
+\textcolor{#CC5500}{t + t_0: \text{ending time}}
+\end{gathered}
+$$
+
+- Trajectories in space-time $\mathbb{R}^d \times \mathbb{R}$ do not intersect
+- Trajectories in space $\mathbb{R}^d$ can intersect
+
+</Slide>
+
+
+<Slide>
+# State of the Art
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; column-gap: 3em;">
+<div>
+
+### Velocity based methods
+
+**Neural ODE**: $\min \|\phi_{target} - ODE_{solve}(\mathbf{V})\|$
+<small>[Chen 2018], [Grathwohl 2019], [Finlay 2020]</small>
+
+**Flow matching**: $\min \|\mathbf{V} - \mathbf{V}_{target}\|$
+<small>[Lipman 2022], [Liu 2022]</small>
+
+**Level-set equation**: $\min \|\partial_t f + \langle \nabla f, \mathbf{V} \rangle\|$
+<small>[Novello 2023], [Sang 2025], [Buonomo 2025]</small>
+
+Requires <span style="color: red;">*time-stepping*</span>:
+
+$$
+\phi_\theta((x, t_0), t) = x + \int_{t_0}^{t+t_0} \mathbf{V}(x(t), s)\, ds
+$$
+
+</div>
+<div>
+
+### Direct methods
+
+**Time-parameterized INN**: not a flow
+<small>[Bilos 2021]</small>
+
+**Neural Conjugate Flow (NCF)**: not expressive enough
+<small>[Bizzi 2024]</small>
+
+**Optimal transport**: tearing during deformation
+<small>[Lévy 2015], [Solomon 2015], [Feydy 2017]</small>
+
+<img
+  src="/images/presentations/PEPR/sota/ot.png"
+  alt="Optimal transport tearing"
+  style="width: 70%; margin: 0 auto; display: block;"
+/>
+
+</div>
+</div>
+
+</Slide>
+
+
+<Slide>
+# State of the Art — Overview
+
+| | INN | T-INN | NODE | F-M | NCF | LSE | OT | **Ours** |
+|---|---|---|---|---|---|---|---|---|
+| Optimization | <span style="color: #228B22;">D</span> | <span style="color: #228B22;">D</span> | <span style="color: #FF4500;">T-S</span> | <span style="color: #228B22;">D</span> | <span style="color: #228B22;">D</span> | <span style="color: #FF4500;">T-S</span> | <span style="color: #228B22;">D</span> | <span style="color: #228B22;">D</span> |
+| Evaluation | <span style="color: #228B22;">D</span> | <span style="color: #228B22;">D</span> | <span style="color: #FF4500;">T-S</span> | <span style="color: #FF4500;">T-S</span> | <span style="color: #228B22;">D</span> | <span style="color: #FF4500;">T-S</span> | <span style="color: #228B22;">D</span> | <span style="color: #228B22;">D</span> |
+| Flow | <span style="color: #FF4500;">✗</span> | <span style="color: #FF4500;">✗</span> | <span style="color: #228B22;">✓</span> | <span style="color: #228B22;">✓</span> | <span style="color: #228B22;">✓</span> | <span style="color: #228B22;">✓</span> | <span style="color: #FF4500;">✗</span> | <span style="color: #228B22;">✓</span> |
+| Expressivity | <span style="color: #228B22;">✓</span> | <span style="color: #228B22;">✓</span> | <span style="color: #228B22;">✓</span> | <span style="color: #228B22;">✓</span> | <span style="color: #FF4500;">✗</span> | <span style="color: #228B22;">✓</span> | <span style="color: #FF4500;">✗</span> | <span style="color: #228B22;">✓</span> |
+
+<small>
+**Legend:** <span style="color: #228B22;">D</span> = Direct, <span style="color: #FF4500;">T-S</span> = Time-Stepping.
+INN: Invertible neural networks, T-INN: Time parameterized INN, NODE: Neural-ODE, F-M: Flow-Matching, NCF: Neural Conjugate Flow, LSE: Level-Set Equation, OT: Optimal Transport
+</small>
+
+</Slide>
+
+
+<Slide>
+# Choice of Representation — Implicit Surfaces
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; column-gap: 3em;">
+<div>
+
+### Explicit
+
+- Input: meshes or point clouds
+- <span style="color: red;">Limitations:</span>
+  - Density variations
+  - Often requires landmarks
+
+<img
+  src="/images/presentations/PEPR/sota/vp_expl.png"
+  alt="Explicit representation"
+  style="width: 70%; margin: 0 auto; display: block;"
+/>
+
+<small>[Aharon 2019], [Eisenberger 2018], [Von-Tycowicz 2015], [Alexa 2000], [Huang 2008]</small>
+
+</div>
+<div>
+
+### Implicit
+
+- Input: Lipschitz functions
+- <span style="color: green;">Advantages:</span>
+  - In/Out classification
+  - Continuous representation
+
+<SvgImg
+  src="/images/presentations/PEPR/svg/inr2.svg"
+  alt="Implicit representation"
+  style="width: 70%; margin: 0 auto; display: block;"
+/>
+
+<small>[Sitzmann 2020], [Liu 2022], [Wang 2019]</small>
+
+</div>
+</div>
+
+</Slide>
+
+
+<Slide>
+# Objective
+
+Given two shapes $\textcolor{blue}{\mathcal{S}_0}$ and $\textcolor{#8A2BE2}{\mathcal{S}_1}$, look for a flow morphing $\textcolor{blue}{\mathcal{S}_0}$ to $\textcolor{#8A2BE2}{\mathcal{S}_1}$.
+
+- Smooth ambient space morphing due to flow properties
+- Supervision with implicit surfaces
+- With or without landmark points
+
+<div style="display: flex; justify-content: center; align-items: center; gap: 2em; height: calc(var(--base) * 22);">
+  <img src="/images/presentations/PEPR/figures/high_det_0.png" alt="Source shape" style="height: 100%;" />
+  <span style="font-size: 2em;">$\overset{\phi}{\longrightarrow}$</span>
+  <img src="/images/presentations/PEPR/figures/high_det_100.png" alt="Target shape" style="height: 100%;" />
+</div>
+
+$$
+\textcolor{blue}{\mathcal{S}_0} \hspace{5cm} \textcolor{#8A2BE2}{\mathcal{S}_1}
+$$
+
+</Slide>
+
+
+<Slide>
+# Time-Diffeomorphisms Are **Not** Enough
+  <div style={{ height: '70%' }}>
+<ShaderCanvas
+  shader="PEPR/mvt_diffeo.frag"
+  timeline="PEPR/mvt_diffeo.ts"
+  textBlocks={[
+    { text: "$x$", x: 20, y: 70, color: "#4488ff", size: 30, clicks: 1 },
+    { text: "$y = D(x)$", x: 80, y: 50, color: "green", size: 30, clicks: 2 },
+    { text: "Parameterization : $D_t$", x: 40, y: 90, color: "red", size: 30, clicks: 3 },
+    { text: "$y = D_1(x)$", x: 80, y: 50, color: "green", size: 30, clicks: 3 },
+{ text: "$D^{-1}_t(y)$", x: 26, y: 22, color: "purple", size: 30, clicks: 4 },
+  ]}
+/>
+  </div>
+</Slide>
+
+<Slide>
+# Time-Diffeomorphisms Are **Not** Enough
+
+- Go back before going forward
+ <div style={{ height: '70%' }}>
+<ShaderCanvas
+  shader="PEPR/mvt_diffeo2.frag"
+  timeline="PEPR/mvt_diffeo2.ts"
+  textBlocks={[
+    { text: "$x$", x: 20, y: 70, color: "#4488ff", size: 30, clicks: 0 },
+    { text: "$y$", x: 80, y: 50, color: "green", size: 30, clicks: 0 },
+{ text: "$\\phi_t(x)$", x: 23, y: 90, color: "#BFBF26", size: 30, clicks: 2 },
+{ text: "$D^{-1}_{t_0}$", x: 25, y: 45, color: "purple", size: 30, clicks: 2 },
+{ text: "$D_t$", x: 50, y: 20, color: "red", size: 30, clicks: 2 },
+  ]}
+/>
+  </div>
+
+</Slide>
+
+
+<Slide>
+# Our Construction
+
+- Lifting: input of $\text{Space} \times \text{Time}$: $(x, t_0)$
+- Time-diffeomorphism $D_t(x)$: $\mathbb{R}^d \times \mathbb{R} \rightarrow \mathbb{R}^d$
+
+$$
+\textcolor{#BFBF00}{\phi}((x, t_0), t) = (\textcolor{blue}{D}_{t+t_0} \circ \textcolor{#BF00BF}{D^{-1}}_{t_0} (x),\ t+t_0)
+$$
+
+> **Theoretical guarantees**
+>
+> - A flow by construction
+> - Restricted universality — same expressivity as $D$
+> - Direct — no time-stepping
+
+</Slide>
+
+
+<Slide>
+# Parameterization of $D$
+
+Many possibilities: coupling layers, residual layers, auto-regressive layers, infinitesimal layers.
+
+- RealNVP [Dinh 2017]
+  - Universal approximator of diffeomorphisms
+  - Fast inverse computation
+  - Expressivity: composition of multiple coupling layers
+
+<div style="display: flex; justify-content: center; gap: 4em; height: calc(var(--base) * 18);">
+  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers.svg" alt="Coupling layer" />
+  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers_inverse.svg" alt="Inverse coupling layer" />
+</div>
+
+</Slide>
+
+
+<Slide>
+# Parameterization of $D_{\textcolor{red}{t}}$
+
+Many possibilities: coupling layers, residual layers, auto-regressive layers, infinitesimal layers.
+
+- RealNVP [Dinh 2017]
+  - Universal approximator of diffeomorphisms
+  - Fast inverse computation
+  - Expressivity: composition of multiple coupling layers
+  - $s_\theta$, $v_\theta$: Siren [Sitzmann 2020], 2 layers, 128 hidden neurons
+
+<div style="display: flex; justify-content: center; gap: 4em; height: calc(var(--base) * 18);">
+  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers_ours.svg" alt="Time-dependent coupling layer" />
+  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers_inverse_ours.svg" alt="Inverse time-dependent coupling layer" />
+</div>
+
+</Slide>
+
+
+<Slide>
+# Symmetric Nature of the Problem
+
+- $\textcolor{#8A2BE2}{\mathcal{S}_1}$ and $\textcolor{blue}{\mathcal{S}_0}$ can be freely swapped
+- $\phi$ is a flow
+- Double supervision, backward and forward
+
+$$
+\begin{aligned}
+\textcolor{#8A2BE2}{g_1(}\phi((\textcolor{blue}{\mathcal{S}_0}, 0), 1)\textcolor{#8A2BE2}{)} &= 0 \\
+\textcolor{blue}{g_0(}\phi((\textcolor{#8A2BE2}{\mathcal{S}_1}, 1), -1)\textcolor{blue}{)} &= 0
+\end{aligned}
+$$
+
+Dirichlet loss:
+
+$$
+l_D = \int_{\textcolor{#8A2BE2}{\partial\mathcal{S}_1}} \|\textcolor{blue}{g_0(}\phi((\textcolor{#8A2BE2}{y}, 1), -1)\textcolor{blue}{)}\|^2 \mathrm{d}y + \int_{\textcolor{blue}{\partial\mathcal{S}_0}} \|\textcolor{#8A2BE2}{g_1(}\phi((\textcolor{blue}{x}, 0), 1)\textcolor{#8A2BE2}{)}\|^2 \mathrm{d}x
+$$
+
+- Additional losses (normals based, ...)
+- Physics based regularization in time (stretching, bending, regularity, ...)
+
+</Slide>
+
+
+<Slide>
+# Results — $f(x, t) = \textcolor{blue}{g_0(}\phi((x, t), -t)\textcolor{blue}{)}$
+
+<div style="display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 0.4em; flex: 1 1 0; min-height: 0;">
+{pairs.flatMap((p) =>
+  ids.map((i) => (
+    <img
+      src={`${base}/morph_${p}_RealNVP_DSNTI/render_${i}.png`}
+      alt={`${p} ${i}`}
+      style="width: 100%; height: 100%; object-fit: contain;"
+    />
+  ))
+)}
+</div>
+
+</Slide>
+
+
+<Slide>
+# Results
+ <PlyVideo
+    srcs={[
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_0.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_1.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_2.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_3.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_4.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_5.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_6.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_7.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_8.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_9.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_10.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_11.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_12.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_13.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_14.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_15.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_16.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_17.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_18.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_19.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_20.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_21.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_22.ply",
+  "/mesh/presentations/PEPR/hiboux-fandisk/meanw_time_23.ply"
+]}
+    fps={12}
+    pointSize={0.01}
+    initialZoom={0.8}
+  />
+
+</Slide>
+
+
+<Slide>
+# Landmarks
+
+$$
+l_{lm} = \sum \|\phi((\textcolor{#8A2BE2}{y}, 1), -1) - \textcolor{blue}{x}\|^2 + \|\phi((\textcolor{blue}{x}, 0), 1) - \textcolor{#8A2BE2}{y}\|^2
+$$
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; column-gap: 3em; text-align: center;">
+<div>
+
+No landmark
+
+ <PlyVideo
+    srcs={[
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_0.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_1.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_2.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_3.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_4.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_5.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_6.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_7.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_8.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_9.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_10.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_11.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_12.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_13.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_14.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_15.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_16.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_17.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_18.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_19.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_20.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_21.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_22.ply",
+  "/mesh/presentations/PEPR/faust_no_lm/meanw_time_23.ply"
+]}
+    fps={12}
+    pointSize={0.01}
+    initialZoom={0.8}
+  />
+
+</div>
+<div>
+
+1% landmarks
+
+ <PlyVideo
+    srcs={[
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_0.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_1.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_2.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_3.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_4.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_5.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_6.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_7.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_8.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_9.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_10.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_11.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_12.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_13.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_14.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_15.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_16.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_17.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_18.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_19.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_20.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_21.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_22.ply",
+  "/mesh/presentations/PEPR/faust_lm/meanw_time_23.ply"
+]}
+    fps={12}
+    pointSize={0.01}
+    initialZoom={0.8}
+  />
+
+</div>
+</div>
+
+</Slide>
+
+
+
+<Slide>
+# Pairwise-to-Any
+- Morphing shapes without directly training a flow between them:
+
+<SvgImg
+  src="/images/presentations/PEPR/svg/composition.svg"
+  alt="Composition of flows"
+  style="width: 50%; margin: 0 auto; display: block;"
+/>
+</Slide>
+<Slide>
+# Pairwise-to-Any
+
+
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5em; width: 100%; text-align: center;">
+<div>
+
+<PlyVideo
+  srcs={[
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_0.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_1.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_2.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_3.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_4.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_5.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_6.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_7.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_8.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_9.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_10.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_11.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_12.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_13.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_14.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_15.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_16.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_17.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_18.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_19.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_20.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_21.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_22.ply",
+    "/mesh/presentations/PEPR/faust_exp_1/exp_forw_23.ply",
+  ]}
+  fps={12}
+  pointSize={0.01}
+  initialZoom={0.8}
+/>
+  
+
+$\phi_0$
+
+</div>
+<div>
+
+
+
+
+<PlyVideo
+  srcs={[
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_0.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_1.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_2.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_3.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_4.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_5.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_6.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_7.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_8.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_9.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_10.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_11.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_12.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_13.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_14.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_15.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_16.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_17.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_18.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_19.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_20.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_21.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_22.ply",
+    "/mesh/presentations/PEPR/faust_exp_3/exp_forw_23.ply",
+  ]}
+  fps={12}
+  pointSize={0.01}
+  initialZoom={0.8}
+/>
+$\phi_0 \circ \phi_1$
+</div>
+<div>
+
+
+<PlyVideo
+  srcs={[
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_1.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_2.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_3.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_4.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_5.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_6.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_7.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_8.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_9.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_10.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_11.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_12.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_13.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_14.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_15.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_16.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_17.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_18.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_19.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_20.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_21.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_22.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_23.ply",
+    "/mesh/presentations/PEPR/faust_exp_2/exp_forw_24.ply",
+  ]}
+  fps={12}
+  pointSize={0.01}
+  initialZoom={0.8}
+/>
+
+$\phi_1$
+
+</div>
+</div>
+
+</Slide>
+
+
+<Slide>
+# Edition — Settings
+
+- 1 shape + set of correspondences
+
+<SvgImg
+  src="/images/presentations/PEPR/svg/armadillo_landmarks.svg"
+  alt="Armadillo landmarks"
+  style="width: 20%; margin: 0 auto; display: block;"
+/>
+
+> **Geometry processing with neural fields** [Yang 2021]
+>
+> - Thin shell energy for implicit surface
+> - INN to compute the deformation
+> - Only provide final deformed state
+
+</Slide>
+
+
+<Slide>
+# Edition — Results
+
+<div style="display: grid; grid-template-columns: 5em repeat(10, 1fr); gap: 0.3em; align-items: center; font-size: 0.8em;">
+<span>NFGP</span>
+{nfgp.map((s) => (
+  <img
+    src={`/images/presentations/PEPR/png_results/edition/armadillo_edition_NFGP_step_${s}.png`}
+    alt={`NFGP step ${s}`}
+    style={s === "50" ? "outline: 2px solid currentColor;" : ""}
+  />
+))}
+<span><strong>EFIS</strong> (Ours)</span>
+{ours.map((s, k) => (
+  <img
+    src={`/images/presentations/PEPR/png_results/edition/armadillo_edition_ours_step_${s}.png`}
+    alt={`EFIS step ${s}`}
+    style={k === 3 ? "outline: 2px solid currentColor;" : ""}
+  />
+))}
+<span></span>
+{times.map((t) => (
+  <span style="text-align: center;">{t}</span>
+))}
+</div>
+
+
+</Slide>
+
+
+<Slide>
+# Edition — Results 
+<PlyVideo
+  srcs={[
+    "/mesh/publications/volume-preserving/forw_time_0.ply",
+    "/mesh/publications/volume-preserving/forw_time_1.ply",
+    "/mesh/publications/volume-preserving/forw_time_2.ply",
+    "/mesh/publications/volume-preserving/forw_time_3.ply",
+    "/mesh/publications/volume-preserving/forw_time_4.ply",
+    "/mesh/publications/volume-preserving/forw_time_5.ply",
+    "/mesh/publications/volume-preserving/forw_time_6.ply",
+    "/mesh/publications/volume-preserving/forw_time_7.ply",
+    "/mesh/publications/volume-preserving/forw_time_8.ply",
+    "/mesh/publications/volume-preserving/forw_time_9.ply",
+    "/mesh/publications/volume-preserving/forw_time_10.ply",
+    "/mesh/publications/volume-preserving/forw_time_11.ply",
+    "/mesh/publications/volume-preserving/forw_time_12.ply",
+    "/mesh/publications/volume-preserving/forw_time_13.ply",
+    "/mesh/publications/volume-preserving/forw_time_14.ply",
+    "/mesh/publications/volume-preserving/forw_time_15.ply",
+    "/mesh/publications/volume-preserving/forw_time_16.ply",
+    "/mesh/publications/volume-preserving/forw_time_17.ply",
+    "/mesh/publications/volume-preserving/forw_time_18.ply",
+    "/mesh/publications/volume-preserving/forw_time_19.ply",
+    "/mesh/publications/volume-preserving/forw_time_20.ply",
+    "/mesh/publications/volume-preserving/forw_time_21.ply",
+    "/mesh/publications/volume-preserving/forw_time_22.ply",
+    "/mesh/publications/volume-preserving/forw_time_23.ply",
+  ]}
+  fps={12}
+  pointSize={0.01}
+  initialZoom={0.8}
+/>
+</Slide>
+
+<Slide>
+# Conclusion
+
+- Neural architecture with guaranteed flow properties
+- Restricted universality theorem
+- Works with implicit and explicit constraints
+- Coupled with physics-based regularization
+
+**Future works**
+
+- Many more applications to explore
+
+
+<small>
+Funded by ANR-23-PEIA-0004 (PDE-AI). Computing resources by GENCI at IDRIS (grant 2025-AD010616975) on the supercomputer Jean Zay.
+</small>
+
+</Slide>
+
+</Presentation>
