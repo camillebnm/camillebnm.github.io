@@ -241,21 +241,19 @@ const { noCounter = false } = Astro.props
      FORMULES
      ================================================== */
 
-  .slide-content :global(.katex) {
-    font-size: 1.3em;
-  }
+.slide-content :global(.katex) {
+  font-size: 1.3em;
+}
 
-  .slide-content :global(.katex-display) {
-    margin: 0.2em 0;
-    padding: 0.1em 0;
+.slide-content :global(.katex-display) {
+  margin: 0.2em 0;
+  padding: 0.1em 0;
+  overflow: visible;   /* plus de rognage des intégrales */
+}
 
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-  .slide-content :global(.katex-display > .katex) {
-    font-size: 1.5em;
-  }
+.slide-content :global(.katex-display > .katex) {
+  font-size: 1.5em;
+}
 
 
   /* ==================================================
@@ -284,15 +282,18 @@ const { noCounter = false } = Astro.props
     gap: 0.3em;
   }
 
-  .slide-content :global(img),
-  .slide-content :global(svg) {
-    max-width: 100%;
-    max-height: 100%;
-    min-width: 0;
-    min-height: 0;
+.slide-content :global(img),
+.slide-content :global(svg:not(.katex svg)) {
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+}
 
-    object-fit: contain;
-  }
+.slide-content :global(figure > svg:not(.katex svg)) {
+  flex: 1 1 0;
+}
 
   .slide-content :global(figure > img),
   .slide-content :global(figure > svg) {

@@ -25,7 +25,10 @@ export const times = ["6min", "12min", "18min", "24min", "30min", "36min", "60mi
 
 <Slide noCounter>
 
-# Explicit flows for implicit surfaces
+
+
+# Journées du PEPR EDP-IA
+## Explicit flows for implicit surfaces
 <img
   src="/images/presentations/PEPR/figures/img_tease.png"
   alt="Teaser"
@@ -49,7 +52,7 @@ export const times = ["6min", "12min", "18min", "24min", "30min", "36min", "60mi
 # Introduction
 
 <img
-  src="/images/presentations/PEPR/figures/img_tease.png"
+  src="/images/presentations/PEPR/svg/morphing.svg"
   alt="Teaser"
   style="width: 55%; margin: 0 auto; display: block;"
 />
@@ -290,11 +293,12 @@ $$
   shader="PEPR/mvt_diffeo2.frag"
   timeline="PEPR/mvt_diffeo2.ts"
   textBlocks={[
-    { text: "$x$", x: 20, y: 70, color: "#4488ff", size: 30, clicks: 0 },
-    { text: "$y$", x: 80, y: 50, color: "green", size: 30, clicks: 0 },
-{ text: "$\\phi_t(x)$", x: 23, y: 90, color: "#BFBF26", size: 30, clicks: 2 },
-{ text: "$D^{-1}_{t_0}$", x: 25, y: 45, color: "purple", size: 30, clicks: 2 },
-{ text: "$D_t$", x: 50, y: 20, color: "red", size: 30, clicks: 2 },
+    { text: "$(x, t_0)$", x: 15, y: 70, color: "#4488ff", size: 30, clicks: 0 },
+    { text: "$(y, t_1)$", x: 80, y: 50, color: "green", size: 30, clicks: 0 },
+{ text: "$\\phi_t(x)$", x: 80, y: 47, color: "#BFBF26", size: 30, clicks: 3 },
+{ text: "$D^{-1}_{t_0}$", x: 25, y: 45, color: "purple", size: 30, clicks: 1 },
+{ text: "$D_t$", x: 50, y: 15, color: "red", size: 30, clicks: 2 },
+{ text: "$(z, 0)$", x: 25, y: 15, color: "black", size: 30, clicks: 1 },
   ]}
 />
   </div>
@@ -332,8 +336,8 @@ Many possibilities: coupling layers, residual layers, auto-regressive layers, in
   - Expressivity: composition of multiple coupling layers
 
 <div style="display: flex; justify-content: center; gap: 4em; height: calc(var(--base) * 18);">
-  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers.svg" alt="Coupling layer" />
-  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers_inverse.svg" alt="Inverse coupling layer" />
+  <SvgImg src="/images/presentations/PEPR/svg/cpl.svg" alt="Coupling layer" />
+  <SvgImg src="/images/presentations/PEPR/svg/cpl_i.svg" alt="Inverse coupling layer" />
 </div>
 
 </Slide>
@@ -351,8 +355,8 @@ Many possibilities: coupling layers, residual layers, auto-regressive layers, in
   - $s_\theta$, $v_\theta$: Siren [Sitzmann 2020], 2 layers, 128 hidden neurons
 
 <div style="display: flex; justify-content: center; gap: 4em; height: calc(var(--base) * 18);">
-  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers_ours.svg" alt="Time-dependent coupling layer" />
-  <SvgImg src="/images/presentations/PEPR/svg/coupling_layers_inverse_ours.svg" alt="Inverse time-dependent coupling layer" />
+  <SvgImg src="/images/presentations/PEPR/svg/cpl_ours.svg" alt="Time-dependent coupling layer" />
+  <SvgImg src="/images/presentations/PEPR/svg/cpl_i_ours.svg" alt="Inverse time-dependent coupling layer" />
 </div>
 
 </Slide>
@@ -433,7 +437,7 @@ $$
 ]}
     fps={12}
     pointSize={0.01}
-    initialZoom={0.8}
+    initialZoom={1}
   />
 
 </Slide>
@@ -532,7 +536,7 @@ No landmark
 - Morphing shapes without directly training a flow between them:
 
 <SvgImg
-  src="/images/presentations/PEPR/svg/composition.svg"
+  src="/images/presentations/PEPR/svg/compo.svg"
   alt="Composition of flows"
   style="width: 50%; margin: 0 auto; display: block;"
 />
@@ -617,7 +621,7 @@ $\phi_0$
   pointSize={0.01}
   initialZoom={0.8}
 />
-$\phi_0 \circ \phi_1$
+$\phi_{0} \circ \phi_{1}$
 </div>
 <div>
 
@@ -651,7 +655,7 @@ $\phi_0 \circ \phi_1$
   ]}
   fps={12}
   pointSize={0.01}
-  initialZoom={0.8}
+  initialZoom={0.8	}
 />
 
 $\phi_1$
@@ -743,7 +747,7 @@ $\phi_1$
   ]}
   fps={12}
   pointSize={0.01}
-  initialZoom={0.8}
+  initialZoom={1}
 />
 </Slide>
 

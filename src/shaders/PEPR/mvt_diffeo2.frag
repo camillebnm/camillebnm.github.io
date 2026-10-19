@@ -18,7 +18,10 @@ float pulse(vec2 p, vec2 c, float t, float aa) {
     float w = 0.004 * (1.0 - k) + 0.5*aa;
     return (1.0 - smoothstep(w - aa, w + aa, abs(length(p - c) - r))) * (1.0 - k) * 0.6;
 }
-
+vec2 curvePos(float t, vec2 x, vec2 translation, float angle) {
+    mat2 R = mat2(cos(t * angle), sin(t * angle), -sin(t * angle), cos(t * angle));
+    return R * x + t * translation;
+}
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float aa = 1.0 / iResolution.y;
     vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;
@@ -26,70 +29,74 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     int clicked = u_clickCount;
 
     float angle = 1.56;
-    float angle2 = 2.1;
     vec2 translation = vec2(0.8, 1.75);
-    vec2 translation2 = vec2(-0.8, -0.75);
     vec2 x = vec2(-1.5, -0.6);
-    mat2 R = mat2(cos(angle), sin(angle), -sin(angle), cos(angle));
-    vec2 y = R * x + translation;
-    mat2 R2 = mat2(cos(angle2), sin(angle2), -sin(angle2), cos(angle2));
+    vec2 refP = vec2(-1.0, 0.5);
+    vec2 y = curvePos(1.0, x, translation, angle);
 
-    vec2 ref = vec2(-1,0.5 );
-    
-
-
-    	
-    
-
-
-
-
-
-
-
-color = mix(color, vec3(0.1, 0.3, 0.95), disc(uv, x, 0.1, aa));
-color = mix(color, vec3(0.1, 0.75, 0.25), disc(uv, y, 0.1, aa));
-
-if (clicked > 0){
-
-    color = mix(color, vec3(0.0, 0.0, 0.0), disc(uv, ref, 0.05, aa));
-    
-    
-    
-}
-if (clicked > 1) {
-    float phase = mod(max(iTime - u_clickTimes[1], 0.0)*0.3, 2.0);
-    float t = 1.0 - abs(phase - 1.0);
-    mat2 Rmid = mat2(cos(t * angle), sin(t * angle), -sin(t * angle), cos(t * angle));
-    vec2 target = Rmid * x + t * translation;
-
-    vec2 d1 = normalize(ref - x);
+    // Géométrie commune
+    vec2 d1     = normalize(refP - x);
     vec2 ortho1 = vec2(d1.y, -d1.x);
-    vec2 d2 = normalize(target - ref);
+
+    // Position du point jaune : fixe à 75 %, animé à partir du clic 3
+    float tTarget = 1.;
+    if (clicked > 2) {
+        float phase = max(iTime - u_clickTimes[2], 0.0) * 0.3;
+        float ph = mod(phase + 1., 2.0);
+        tTarget = 1.0 - abs(ph - 1.0);
+    }
+    vec2 target = curvePos(tTarget, x, translation, angle);
+
+    vec2 d2     = normalize(target - refP);
     vec2 ortho2 = vec2(-d2.y, d2.x);
 
-    for (int i = 0; i <= 1000; i++) {
-        float s = float(i) / 1000.0;
-        vec2 p1 = mix(x, ref, s) + 0.2  * sin(3.14159 * s) * ortho1;
-        vec2 p2 = mix(ref, target, s) + 0.2  * sin(3.14159 * s) * ortho2;
-	color = mix(color, vec3(0.75, 0.1, 0.75), disc(uv, p1, 0.01, aa));
-	color = mix(color, vec3(0.9, 0.1, 0.1), disc(uv, p2, 0.01, aa));
+    // ===== 1) COURBES (en dessous) =====
+
+    // Courbe jaune (clic 2)
+    if (clicked > 2) {
+        for (int i = 0; i <= 100; i++) {
+            float t = float(i) / 100.0;
+            color = mix(color, vec3(0.75, 0.75, 0.15),
+                        disc(uv, curvePos(t, x, translation, angle), 0.01, aa));
+        }
     }
-    color = mix(color, vec3(0.75, 0.75, 0.15), disc(uv, target, 0.05, aa));
-    int n = 100;
-for (int i = 0; i <= n; i++) {
-    float t = float(i) / 100.0;
-    mat2 Rt = mat2(cos(t * angle), sin(t * angle), -sin(t * angle), cos(t * angle));
-    vec2 p = Rt * x + t * translation;
-    color = mix(color, vec3(0.75, 0.75, 0.15), disc(uv, p, 0.01, aa));
-}
-}
+
+    // Trajectoire violette x -> refP (clic 1)
+    if (clicked > 0) {
+        for (int i = 0; i <= 1000; i++) {
+            float s = float(i) / 1000.0;
+            vec2 p1 = mix(x, refP, s) + 0.2 * sin(3.14159 * s) * ortho1;
+            color = mix(color, vec3(0.75, 0.1, 0.75), disc(uv, p1, 0.01, aa));
+        }
+    }
+
+    // Trajectoire rouge refP -> target (clic 2)
+    if (clicked > 1) {
+        for (int i = 0; i <= 1000; i++) {
+            float s = float(i) / 1000.0;
+            vec2 p2 = mix(refP, target, s) + 0.2 * sin(3.14159 * s) * ortho2;
+            color = mix(color, vec3(0.9, 0.1, 0.1), disc(uv, p2, 0.01, aa));
+        }
+    }
+
+    // ===== 2) POINTS (au-dessus) =====
+
+    
 
 
+    if (clicked > 1) {
+        
 
-
-
+        // Point jaune mobile
+        color = mix(color, vec3(0.75, 0.75, 0.15), disc(uv, target, 0.05, aa));
+    }
+	// Point x
+    color = mix(color, vec3(0.1, 0.3, 0.95), disc(uv, x, 0.1, aa));
+    // Point y (extrémité de la courbe jaune)
+    color = mix(color, vec3(0.1, 0.95, 0.15), disc(uv, y, 0.1, aa));
+    // Point noir refP (par-dessus la courbe rouge et violette)
+        if (clicked > 0) {
+        color = mix(color, vec3(0.0), disc(uv, refP, 0.05, aa));
+    }
     fragColor = vec4(color, 1.0);
-   
-
 }
