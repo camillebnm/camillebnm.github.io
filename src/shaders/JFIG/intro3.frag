@@ -81,6 +81,25 @@ float polygonSDF(vec2 p, vec2 vertices[N])
     return inside ? -d : d;
 }
 
+void accumulatePolygon(
+    vec2 p, vec2 a, vec2 b,
+    inout float minD2,
+    inout bool inside
+)
+{
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-12), 0.0, 1.0);
+    vec2 q = pa - ba * h;
+
+    minD2 = min(minD2, dot(q, q));
+
+    if ((a.y > p.y) != (b.y > p.y) &&
+        p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x)
+        inside = !inside;
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
     vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;
@@ -88,23 +107,28 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 
     float t = 0.5 - 0.5 * cos(iTime);
 
-    float dP = polygonSDF(p, P);
-    float dM = polygonSDF(p, M);
+    float minDP2 = 1e10;
+    float minDM2 = 1e10;
+    bool insideP = false;
+    bool insideM = false;
 
-float d = mix(dP, dM, t);
+    // Une seule boucle pour les deux polygones
+    for (int i = 0; i < N; i++)
+    {
+        int j = (i + 1 == N) ? 0 : i + 1;
 
-float eps = 1e-4;
-float dx = mix(
-    polygonSDF(p + vec2(eps, 0), P),
-    polygonSDF(p + vec2(eps, 0), M), t
-) - d;
+        accumulatePolygon(p, P[i], P[j], minDP2, insideP);
+        accumulatePolygon(p, M[i], M[j], minDM2, insideM);
+    }
 
-float dy = mix(
-    polygonSDF(p + vec2(0, eps), P),
-    polygonSDF(p + vec2(0, eps), M), t
-) - d;
+    float dP = sqrt(minDP2) * (insideP ? -1.0 : 1.0);
+    float dM = sqrt(minDM2) * (insideM ? -1.0 : 1.0);
 
-d /= max(length(vec2(dx, dy)) / eps, 1e-4);
+    float d = mix(dP, dM, t);
+
+    // Normalisation du gradient par dérivées GPU
+    float grad = length(vec2(dFdx(d), dFdy(d))) * iResolution.y;
+    d /= max(grad, 1e-4);
 
     float aa = 1.0 / iResolution.y;
     float line = 1.0 - smoothstep(aa, 2.0 * aa, abs(d));

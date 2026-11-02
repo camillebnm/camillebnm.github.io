@@ -63,8 +63,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     // Trajectoire violette x -> refP (clic 1)
     if (clicked > 0) {
-        for (int i = 0; i <= 1000; i++) {
-            float s = float(i) / 1000.0;
+        for (int i = 0; i <= 200; i++) {
+            float s = float(i) / 200.0;
             vec2 p1 = mix(x, refP, s) + 0.2 * sin(3.14159 * s) * ortho1;
             color = mix(color, vec3(0.75, 0.1, 0.75), disc(uv, p1, 0.01, aa));
         }
@@ -72,8 +72,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     // Trajectoire rouge refP -> target (clic 2)
     if (clicked > 1) {
-        for (int i = 0; i <= 1000; i++) {
-            float s = float(i) / 1000.0;
+        for (int i = 0; i <= 200; i++) {
+            float s = float(i) / 200.0;
             vec2 p2 = mix(refP, target, s) + 0.2 * sin(3.14159 * s) * ortho2;
             color = mix(color, vec3(0.9, 0.1, 0.1), disc(uv, p2, 0.01, aa));
         }
